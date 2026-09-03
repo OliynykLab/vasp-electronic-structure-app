@@ -6,6 +6,24 @@ just download and open. Everything the app needs is already bundled inside
 it.
 
 
+Already have a build on this Mac?
+----------------------------------
+
+If a build has already been produced on this machine (via `./build_mac.sh`),
+the app is sitting at:
+
+    /Users/emiljaffal/Desktop/Github/vasp-electronic-structure-app/dist/DOSCAR Plotter.app
+
+Double-click it in Finder at that path, or open it from Terminal with:
+
+    open "/Users/emiljaffal/Desktop/Github/vasp-electronic-structure-app/dist/DOSCAR Plotter.app"
+
+The first-launch Gatekeeper step in the macOS section below still applies.
+This section only makes sense on this particular computer — anyone else
+opening this guide from a downloaded `.dmg` or `.zip` should skip to the
+sections below instead.
+
+
 macOS
 -----
 
