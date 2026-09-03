@@ -10,11 +10,11 @@ corner: no browser, no server to run, no Python install required by the end
 user. Those two web tools are now considered legacy/precursor projects —
 this app is where active development happens going forward.
 
-> **Testing status:** this app has so far only been built and run on
-> **macOS**. The Windows build compiles cleanly with PyInstaller and the
-> code has no platform-specific logic beyond path handling, but it has not
-> yet actually been launched on a Windows machine — treat the Windows `.exe`
-> as untested until someone confirms it opens and renders correctly (see
+> **Testing status:** this app has so far only actually been *run* on
+> **macOS**. [CI](../../actions) builds both platforms on every push and
+> confirms the Windows `.exe` packages cleanly with PyInstaller, but no one
+> has yet launched it on a real Windows machine to confirm the window opens
+> and renders correctly — treat it as untested until that happens (see
 > [HOW_TO_OPEN.md](HOW_TO_OPEN.md) and the note about WebView2 there).
 
 ## For users: install and run
