@@ -1,0 +1,783 @@
+/* ==========================================================================
+   DOSCAR Plotter — design system
+   Native-feeling desktop UI: system font stack, light/dark theme via
+   [data-theme] on <html>, three-column layout: sidebar / plot / atomic table.
+   ========================================================================== */
+
+:root {
+  --bg: #f3f4f8;
+  --surface: #ffffff;
+  --surface-alt: #f6f7fb;
+  --surface-sunken: #eceef4;
+  --border: #e2e5ee;
+  --border-strong: #cbd0dd;
+  --text: #1b1e27;
+  --text-muted: #666e80;
+  --text-faint: #9aa1b1;
+  --primary: #2f6fed;
+  --primary-hover: #2559c9;
+  --primary-soft: rgba(47, 111, 237, 0.12);
+  --success: #1a9a58;
+  --success-soft: rgba(26, 154, 88, 0.12);
+  --danger: #e0483e;
+  --danger-soft: rgba(224, 72, 62, 0.12);
+  --warning: #b5790a;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 7px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #14161d;
+  --surface: #1b1e27;
+  --surface-alt: #22252f;
+  --surface-sunken: #10121a;
+  --border: #2c3040;
+  --border-strong: #3a3f52;
+  --text: #eaecf3;
+  --text-muted: #a2a9bc;
+  --text-faint: #6c7386;
+  --primary: #6f9bff;
+  --primary-hover: #8fb1ff;
+  --primary-soft: rgba(111, 155, 255, 0.16);
+  --success: #3fce8b;
+  --success-soft: rgba(63, 206, 139, 0.14);
+  --danger: #ff7a70;
+  --danger-soft: rgba(255, 122, 112, 0.14);
+  --warning: #f0b64f;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* ---------------------------------- shell ---------------------------------- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 22px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--primary), #7fb2ff 120%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.brand-mark svg {
+  width: 19px;
+  height: 19px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.brand-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.brand-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Mode switcher (dcc.Dropdown) styled to read as the app title, not a form
+   field, until the reader notices the caret and hovers it. */
+.mode-select {
+  -webkit-app-region: no-drag;
+  width: 190px;
+  margin-left: -8px;
+}
+.mode-select .Select-control {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--radius-sm) !important;
+  min-height: 26px !important;
+  height: 26px !important;
+  cursor: pointer;
+}
+.mode-select .Select-control:hover,
+.mode-select.is-open .Select-control {
+  background: var(--surface-alt) !important;
+  border-color: var(--border) !important;
+}
+.mode-select .Select-value,
+.mode-select .Select-value-label {
+  padding-left: 8px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+  color: var(--text) !important;
+  line-height: 26px !important;
+}
+.mode-select .Select-input {
+  padding-left: 8px !important;
+}
+.mode-select .Select-arrow-zone {
+  padding-right: 6px !important;
+  opacity: 0.6;
+}
+.mode-select .Select-menu-outer {
+  width: 220px !important;
+  margin-top: 4px !important;
+}
+.mode-select .VirtualizedSelectOption {
+  padding: 9px 12px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  -webkit-app-region: no-drag;
+}
+
+.folder-badge {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-badge:empty {
+  display: none;
+}
+
+.theme-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--surface-sunken);
+  border-color: var(--border-strong);
+}
+
+.icon-sun {
+  display: none;
+}
+:root[data-theme="dark"] .icon-moon {
+  display: none;
+}
+:root[data-theme="dark"] .icon-sun {
+  display: inline;
+}
+
+/* ---------------------------------- body ---------------------------------- */
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.plot-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 20px 20px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.atomic-pane {
+  flex: 0 0 460px;
+  min-width: 380px;
+  max-width: 560px;
+  overflow-y: auto;
+  padding: 18px 24px 32px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* DOSCAR's atomic-contributions table has a color picker plus a wide
+   orbital-checkbox column, so it gets extra room. */
+#doscar-page .atomic-pane {
+  flex-basis: 560px;
+  min-width: 460px;
+  max-width: 680px;
+}
+
+/* The COHP/COOP element-pair table has far fewer columns than DOSCAR's, so
+   it needs less room — but still enough to keep the Pair column readable
+   next to the Color/Show/ICOHP columns. Narrower than DOSCAR's pane is also
+   what leaves the plot-pane enough width for the COHP and COOP plots to sit
+   side by side instead of wrapping to stacked. */
+#cohp-page .atomic-pane {
+  flex-basis: 340px;
+  min-width: 300px;
+  max-width: 400px;
+}
+
+#cohp-page .atom-name-cell {
+  min-width: 84px;
+}
+
+.atomic-pane .card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ---------------------------------- cards ---------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+}
+
+.card-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.card-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.card-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.section-gap {
+  margin-top: 14px;
+}
+
+.plot-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  margin: auto;
+}
+
+/* COHP + COOP shown side by side (wraps to stacked on narrow windows). */
+.dual-plot-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  align-items: flex-start;
+  margin: auto;
+}
+
+.dual-plot-row .plot-card {
+  margin: 0;
+}
+
+.plot-frame {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------------------------------- fields ---------------------------------- */
+
+.field-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.field-row + .field-row {
+  margin-top: 12px;
+}
+
+.num-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13.5px;
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.num-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+  background: var(--surface);
+}
+
+.field-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field-checklist label,
+.checklist-inline label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  color: var(--text);
+  padding: 5px 0;
+  cursor: pointer;
+}
+
+.field-checklist input[type="checkbox"],
+.checklist-inline input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ---------------------------------- buttons ---------------------------------- */
+
+.btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 9px 16px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #ffffff;
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-secondary {
+  background: var(--surface-alt);
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-secondary:hover {
+  background: var(--surface-sunken);
+  border-color: var(--border-strong);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.btn-ghost:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-alt);
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.icon-btn:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+/* ---------------------------------- upload ---------------------------------- */
+
+.upload-dropzone {
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 22px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  background: var(--surface-alt);
+}
+
+.upload-dropzone:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.upload-icon {
+  font-size: 22px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.upload-title {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.upload-subtitle {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ---------------------------------- status text ---------------------------------- */
+
+.status-text {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.status-text:empty {
+  display: none;
+}
+
+.status-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.45;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.status-box:empty {
+  display: none;
+}
+
+.status-success {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: transparent;
+}
+
+.status-warning {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: transparent;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+/* ---------------------------------- table ---------------------------------- */
+
+.table-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  min-width: 560px;
+}
+
+/* The COHP/COOP element-pair table has 4 simple columns (no orbital
+   checkboxes), so it doesn't need DOSCAR's wider minimum before scrolling. */
+#cohp-page .data-table {
+  min-width: 320px;
+}
+
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  z-index: 1;
+}
+
+.data-table tbody td {
+  text-align: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background: var(--surface-alt);
+}
+
+.atom-name-cell {
+  font-weight: 700;
+  text-align: left !important;
+  padding-left: 16px !important;
+}
+
+.atom-name-cell.total-row {
+  color: var(--text);
+}
+
+.color-cell {
+  min-width: 148px;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+.color-cell .Select {
+  width: 100%;
+}
+
+.orbital-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 10px;
+}
+
+.orbital-checklist label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  padding: 3px 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.orbital-checklist input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.order-btns {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* react-select (dcc.Dropdown) overrides */
+.data-table .Select-control {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  min-height: 32px !important;
+  height: 32px !important;
+}
+.data-table .Select-control:hover {
+  box-shadow: none !important;
+  border-color: var(--border-strong) !important;
+}
+.data-table.is-focused:not(.is-open) > .Select-control,
+.data-table .is-focused .Select-control {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-soft) !important;
+}
+.Select-menu-outer {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow-md) !important;
+  z-index: 30 !important;
+}
+.Select-value-label,
+.Select-placeholder,
+.Select--single > .Select-control .Select-value,
+.Select input {
+  color: var(--text) !important;
+}
+.VirtualizedSelectOption {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+.VirtualizedSelectFocusedOption {
+  background: var(--surface-alt) !important;
+}
+.Select-arrow {
+  border-color: var(--text-faint) transparent transparent !important;
+}
+
+/* ---------------------------------- misc ---------------------------------- */
+
+.dos-graph {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.empty-hint {
+  color: var(--text-faint);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 8px;
+}
+
+@media (max-width: 1050px) {
+  .sidebar {
+    width: 250px;
+  }
+  .atomic-pane {
+    flex-basis: 360px;
+    min-width: 320px;
+  }
+}

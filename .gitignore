@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.Python
+
+# Virtual environments
+.venv*/
+venv/
+.build-venv-*/
+
+# PyInstaller build output
+build/
+dist/
+
+# Packaging scratch
+packaging/icon_preview.png
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
