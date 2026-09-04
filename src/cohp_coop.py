@@ -13,6 +13,14 @@ import plotly.graph_objects as go
 
 PAIR_RE = re.compile(r":([A-Za-z]+)\d+->([A-Za-z]+)\d+\(")
 
+# Per-legend-entry vertical footprint (text + marker + gap to the next entry)
+# shrinks by this factor. Row height is set almost entirely by the legend's
+# own font size (not by tracegroupgap, which floors at 0 well before the
+# font-driven text height does), so hitting a real fraction of the current
+# spacing means scaling font size, marker size, and tracegroupgap together --
+# see the legend/use_marker_dot_legend call sites in build_bonding_figure.
+LEGEND_SHRINK = 3
+
 DEFAULTS = {
     "xmin": -30,
     "xmax": 30,
@@ -137,7 +145,7 @@ def auto_x_limits(raw_data, unique_pairs, kind):
     return int(round(xmin)), int(round(xmax))
 
 
-def use_marker_dot_legend(fig, marker_size=10):
+def use_marker_dot_legend(fig, marker_size=10 / LEGEND_SHRINK):
     """Swap each trace's line-swatch legend icon for a small marker dot.
 
     Plotly's legend.itemwidth (the width of the line-swatch icon a "lines"
@@ -284,7 +292,12 @@ def build_bonding_figure(
             ticks="outside" if show_y_scale else "",
             showticklabels=show_y_scale,
         ),
-        legend=dict(x=legend_x, y=legend_y, xanchor="right", yanchor="top", bgcolor="rgba(0,0,0,0)"),
+        legend=dict(
+            x=legend_x, y=legend_y, xanchor="right", yanchor="top",
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(size=20 / LEGEND_SHRINK, family="DejaVu Sans, Arial, sans-serif"),
+            tracegroupgap=10 / LEGEND_SHRINK,
+        ),
         plot_bgcolor="white",
         paper_bgcolor="white",
         margin=dict(l=50, r=50, t=50, b=50),
