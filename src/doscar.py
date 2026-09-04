@@ -3,14 +3,6 @@ import re
 import numpy as np
 import plotly.graph_objs as go
 
-# Per-legend-entry vertical footprint (text + marker + gap to the next entry)
-# shrinks by this factor. Row height is set almost entirely by the legend's
-# own font size (not by tracegroupgap, which floors at 0 well before the
-# font-driven text height does), so hitting a real fraction of the current
-# spacing means scaling font size, marker size, and tracegroupgap together --
-# see the legend/use_marker_dot_legend call sites in parse_doscar_and_plot.
-LEGEND_SHRINK = 3
-
 # Define Mendeleev numbers
 mendeleev_numbers = {
     "H": 92, "He": 98, "Li": 1, "Be": 67, "B": 72, "C": 77, "N": 82, "O": 87, "F": 93, "Ne": 99,
@@ -26,7 +18,7 @@ mendeleev_numbers = {
     "Am": 26, "Cm": 28, "Bk": 30, "Cf": 32, "Es": 34, "Fm": 36, "Md": 38, "No": 40, "Lr": 42,
 }
 
-def use_marker_dot_legend(fig, marker_size=10 / LEGEND_SHRINK):
+def use_marker_dot_legend(fig, marker_size=10):
     """Swap each trace's line-swatch legend icon for a small marker dot.
 
     Plotly's legend.itemwidth (the width of the line-swatch icon a "lines"
@@ -569,16 +561,7 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
             y=legend_y_adjusted,
             xanchor='right',
             yanchor='top',
-            bgcolor='rgba(0,0,0,0)',
-            # Per-entry height is set by the legend's own font size (the 20pt
-            # plot-wide font otherwise applies here too), and the gap between
-            # entries is tracegroupgap (each entry has its own legendgroup --
-            # see use_marker_dot_legend -- so this is the only lever for
-            # entry-to-entry spacing). Both scaled down together so the whole
-            # per-entry block (text + marker + gap) shrinks by the same
-            # 1/LEGEND_SHRINK factor.
-            font=dict(size=20 / LEGEND_SHRINK, family="DejaVu Sans, Arial, sans-serif"),
-            tracegroupgap=10 / LEGEND_SHRINK,
+            bgcolor='rgba(0,0,0,0)'
         ),
         plot_bgcolor='white',
         paper_bgcolor='white',
