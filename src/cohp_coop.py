@@ -137,6 +137,47 @@ def auto_x_limits(raw_data, unique_pairs, kind):
     return int(round(xmin)), int(round(xmax))
 
 
+def use_marker_dot_legend(fig, marker_size=10):
+    """Swap each trace's line-swatch legend icon for a small marker dot.
+
+    Plotly's legend.itemwidth (the width of the line-swatch icon a "lines"
+    trace shows in the legend) has a hard floor of 30px with no way to
+    shrink it further -- so a full-width line icon is as small as it can get
+    through layout options alone. To get a more compact legend instead, each
+    visible trace is hidden from the legend and paired with an
+    invisible-on-plot marker-only proxy trace (a single (None, None) point)
+    that shows a small dot in its place. Both share a legendgroup (keyed by
+    trace position, not name -- several traces can share a display name,
+    e.g. every pair's "ICOHP" overlay, and Plotly's default groupclick
+    toggles a whole legendgroup together, so a name-keyed group would wrongly
+    couple all of those) so clicking the dot in the legend still shows/hides
+    just that one real line, same as clicking a normal legend entry would.
+    """
+    proxies = []
+    for i, trace in enumerate(fig.data):
+        if trace.showlegend is False:
+            continue  # already intentionally hidden
+        color = None
+        if trace.line is not None:
+            color = trace.line.color
+        if color is None and getattr(trace, 'marker', None) is not None:
+            color = trace.marker.color
+        group = f"__legend_dot_{i}"
+        trace.showlegend = False
+        trace.legendgroup = group
+        proxies.append(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(size=marker_size, color=color, symbol='circle'),
+            name=trace.name,
+            legendgroup=group,
+            showlegend=True,
+        ))
+    for proxy in proxies:
+        fig.add_trace(proxy)
+    return fig
+
+
 def build_bonding_figure(
     raw_data, folder_name, unique_pairs, color_map, show_map, icohp_map,
     xmin, xmax, ymin, ymax, legend_x, legend_y, show_titles, show_axis_scale,
@@ -271,5 +312,7 @@ def build_bonding_figure(
         line=dict(color="black", width=2),
         fillcolor="rgba(0,0,0,0)",
     )
+
+    use_marker_dot_legend(fig)
 
     return fig
