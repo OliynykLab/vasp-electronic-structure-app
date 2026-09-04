@@ -519,7 +519,8 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
             x=0.95,
             y=legend_y_adjusted,
             xanchor='right',
-            yanchor='top'
+            yanchor='top',
+            bgcolor='rgba(0,0,0,0)'
         ),
         plot_bgcolor='white',
         paper_bgcolor='white',
