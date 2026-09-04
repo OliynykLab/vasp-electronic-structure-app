@@ -243,7 +243,11 @@ def build_bonding_figure(
             ticks="outside" if show_y_scale else "",
             showticklabels=show_y_scale,
         ),
-        legend=dict(x=legend_x, y=legend_y, xanchor="right", yanchor="top"),
+        legend=dict(
+            x=legend_x, y=legend_y, xanchor="right", yanchor="top",
+            bgcolor="rgba(0,0,0,0)",
+            tracegroupgap=0,
+        ),
         plot_bgcolor="white",
         paper_bgcolor="white",
         margin=dict(l=50, r=50, t=50, b=50),
