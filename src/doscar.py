@@ -18,47 +18,6 @@ mendeleev_numbers = {
     "Am": 26, "Cm": 28, "Bk": 30, "Cf": 32, "Es": 34, "Fm": 36, "Md": 38, "No": 40, "Lr": 42,
 }
 
-def use_marker_dot_legend(fig, marker_size=10):
-    """Swap each trace's line-swatch legend icon for a small marker dot.
-
-    Plotly's legend.itemwidth (the width of the line-swatch icon a "lines"
-    trace shows in the legend) has a hard floor of 30px with no way to
-    shrink it further -- so a full-width line icon is as small as it can get
-    through layout options alone. To get a more compact legend instead, each
-    visible trace is hidden from the legend and paired with an
-    invisible-on-plot marker-only proxy trace (a single (None, None) point)
-    that shows a small dot in its place. Both share a legendgroup (keyed by
-    trace position, not name -- several traces can share a display name,
-    e.g. every pair's "ICOHP" overlay, and Plotly's default groupclick
-    toggles a whole legendgroup together, so a name-keyed group would wrongly
-    couple all of those) so clicking the dot in the legend still shows/hides
-    just that one real line, same as clicking a normal legend entry would.
-    """
-    proxies = []
-    for i, trace in enumerate(fig.data):
-        if trace.showlegend is False:
-            continue  # already intentionally hidden (e.g. the dashed "down" spin half)
-        color = None
-        if trace.line is not None:
-            color = trace.line.color
-        if color is None and getattr(trace, 'marker', None) is not None:
-            color = trace.marker.color
-        group = f"__legend_dot_{i}"
-        trace.showlegend = False
-        trace.legendgroup = group
-        proxies.append(go.Scatter(
-            x=[None], y=[None],
-            mode='markers',
-            marker=dict(size=marker_size, color=color, symbol='circle'),
-            name=trace.name,
-            legendgroup=group,
-            showlegend=True,
-        ))
-    for proxy in proxies:
-        fig.add_trace(proxy)
-    return fig
-
-
 def format_orbital_label(orbital):
     # 1. Subscript 3x², 3y², 3z², 3x³, etc.
     orbital_html = re.sub(r'3([xyz])²', r'<sub>3\1<sup>2</sup></sub>', orbital)
@@ -562,11 +521,6 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
             xanchor='right',
             yanchor='top',
             bgcolor='rgba(0,0,0,0)',
-            # Each entry has its own legendgroup (see use_marker_dot_legend),
-            # so tracegroupgap is the only lever for the gap between one
-            # entry and the next; 0 packs entries as tightly as Plotly allows
-            # without touching font/marker size, which are unchanged from
-            # the plot's normal 20pt / 10px.
             tracegroupgap=0
         ),
         plot_bgcolor='white',
@@ -594,7 +548,5 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
         xref="paper", yref="paper",
         line=dict(color="black", width=2),
     )
-
-    use_marker_dot_legend(fig)
 
     return fig
