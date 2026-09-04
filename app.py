@@ -16,7 +16,12 @@ import plotly.io as pio
 from dash import ALL, Dash, Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
-from src.doscar import parse_doscar_and_plot
+from src.doscar import (
+    classify_orbitals,
+    parse_doscar_and_plot,
+    read_atom_dos_blocks,
+    read_doscar_header,
+)
 from src.cohp_coop import (
     DEFAULTS as COHP_DEFAULTS,
     auto_x_limits,
@@ -801,27 +806,20 @@ def update_graph(
     with open(doscar_path, 'r') as f:
         lines = f.readlines()
 
-    fermi_energy = float(lines[5].split()[3])
-    num_points = int(lines[5].split()[2])
+    num_atoms, num_points, fermi_energy, lines_per_point = read_doscar_header(lines)
 
     # Calculate energy and atom-summed total DOS
     energy = np.array([float(line.split()[0]) - fermi_energy for line in lines[6:6 + num_points]])
-    atom_dos_blocks = []
-    current_line = 6 + num_points
-    num_atoms = int(lines[0].split()[0])
+    atom_dos_blocks = read_atom_dos_blocks(lines, num_atoms, num_points, fermi_energy, lines_per_point)
 
-    for _ in range(num_atoms):
-        current_line += 1
-        block = np.array([
-            [float(values[0]) - fermi_energy] + [float(v) for v in values[1:]]
-            for values in (lines[current_line + i].split() for i in range(num_points))
-        ])
-        atom_dos_blocks.append(block)
-        current_line += num_points
+    with open(poscar_path, 'r') as f:
+        atom_types = f.readlines()[5].split()
+    num_columns = atom_dos_blocks[0].shape[1]
+    total_col_indices = classify_orbitals(num_columns, atom_types)['total_col_indices']
 
     total_dos = np.zeros(num_points)
     for block in atom_dos_blocks:
-        total_dos += np.sum(block[:, 1:], axis=1)  # Sum all orbitals for each atom
+        total_dos += np.sum(block[:, total_col_indices], axis=1)  # Sum orbital totals (skips mx/my/mz for non-collinear data)
 
     # Adjust the range calculation using the new atom-summed total DOS
     energy_range_mask = (energy >= (ymin if ymin is not None else -8)) & (energy <= (ymax if ymax is not None else 2))
@@ -950,98 +948,27 @@ def handle_atomic_contributions_and_debug(contents, atom_defaults, spin_polarize
         with open(doscar_path, 'r') as f:
             lines = f.readlines()
 
-        # Extract the number of atoms and number of points
-        num_atoms = int(lines[0].split()[0])
-        num_points = int(lines[5].split()[2])
+        num_atoms, num_points, fermi_energy, lines_per_point = read_doscar_header(lines)
+        atom_dos_blocks = read_atom_dos_blocks(lines, num_atoms, num_points, fermi_energy, lines_per_point)
 
-        # Parse atom blocks to determine the number of columns
-        atom_dos_blocks = []
-        current_line = 6 + num_points
-        for _ in range(num_atoms):
-            current_line += 1
-            block = np.array([
-                [float(values[0])] + [float(v) for v in values[1:]]
-                for values in (lines[current_line + i].split() for i in range(num_points))
-            ])
-            atom_dos_blocks.append(block)
-            current_line += num_points
-
-        # Determine the number of columns in the atom blocks
+        # Determine the number of columns in the atom blocks, and map that to
+        # orbital labels (handles collinear and non-collinear DOSCAR layouts)
         num_columns = atom_dos_blocks[0].shape[1]
         debug_message = f"Detected {num_columns} columns in DOSCAR."
 
-        # Dynamically set orbital labels based on the number of columns
-        if num_columns == 10:
-            orbital_labels = [
-                "s",
-                "py",
-                "pz",
-                "px",
-                "dxy",
-                "dyz",
-                "dz²",
-                "dxz",
-                "dx²-y²"
-            ]
-        elif num_columns == 7:
-            orbital_labels = ["s ↑", "s ↓", "p ↑", "p ↓", "d ↑", "d ↓"]
-        elif num_columns == 19:
-            orbital_labels = [
-                "s ↑", "s ↓", "py ↑", "py ↓", "pz ↑", "pz ↓", "px ↑", "px ↓",
-                "dxy ↑", "dxy ↓", "dyz ↑", "dyz ↓", "dz² ↑", "dz² ↓", "dxz ↑", "dxz ↓", "dx²-y² ↑", "dx²-y² ↓"
-            ]
-        elif num_columns == 17:
-            orbital_labels = [
-                "s",
-                "py",
-                "pz",
-                "px",
-                "dxy",
-                "dyz",
-                "dz²",
-                "dxz",
-                "dx²-y²",
-                "fx(3x²-y²)",
-                "fxyz",
-                "fyz²",
-                "fz³",
-                "fxz²",
-                "fx(x²-y²)",
-                "fx(x²-3y²)"]
-        elif num_columns == 5:
-            # Check for f-block elements in POSCAR
-            poscar_path = contents['POSCAR'] if isinstance(contents, dict) and 'POSCAR' in contents else None
-            atom_types = []
-            if poscar_path and os.path.exists(poscar_path):
-                with open(poscar_path, 'r') as f:
-                    poscar_lines = f.readlines()
-                atom_types = poscar_lines[5].split()
-            f_elements = [
-                "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu",
-                "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"
-            ]
-            contains_f_element = any(elem in atom_types for elem in f_elements)
-            if contains_f_element:
-                orbital_labels = ["s", "p", "d", "f"]
-            else:
-                orbital_labels = ["s", "py", "pz", "px"]
-        elif num_columns == 4:
-            orbital_labels = ["s", "p", "d"]
-        elif num_columns == 33:
-            orbital_labels = [
-            "s ↑", "s ↓", "py ↑", "py ↓", "pz ↑", "pz ↓", "px ↑", "px ↓",
-            "dxy ↑", "dxy ↓", "dyz ↑", "dyz ↓", "dz² ↑", "dz² ↓",
-            "dxz ↑", "dxz ↓",
-            "dx²-y² ↑", "dx²-y² ↓",
-            'fx(3x²-y²) ↑', 'fx(3x²-y²) ↓',
-            'fxyz ↑', 'fxyz ↓',
-            'fyz² ↑', 'fz³ ↑', 'fz³ ↓',
-            'fxz² ↑', 'fxz² ↓',
-            'fx(x²-y²) ↑', 'fx(x²-y²) ↓',
-            'fx(x²-3y²) ↑', 'fx(x²-3y²) ↓'
-        ]
-        elif num_columns == 9:
-            orbital_labels = ['s ↑', 's ↓', 'p ↑', 'p ↓', 'd ↑', 'd ↓', 'f ↑', 'f ↓']
+        poscar_path = contents['POSCAR'] if isinstance(contents, dict) and 'POSCAR' in contents else None
+        atom_types_for_classification = []
+        if poscar_path and os.path.exists(poscar_path):
+            with open(poscar_path, 'r') as f:
+                atom_types_for_classification = f.readlines()[5].split()
+
+        orbital_info = classify_orbitals(num_columns, atom_types_for_classification)
+        orbital_labels = orbital_info['orbital_labels']
+        if orbital_info['is_noncollinear']:
+            debug_message += (
+                " Non-collinear calculation detected — showing total DOS per "
+                "orbital (mx/my/mz magnetization components aren't plotted yet)."
+            )
 
         # Build a color <option> with a small swatch next to the color name
         def color_option(c):
@@ -1210,27 +1137,26 @@ def handle_axes_and_update(reset_clicks, xmin, xmax, ymin, ymax, contents):
             return DEFAULTS["xmin"], DEFAULTS["xmax"], DEFAULTS["ymin"], DEFAULTS["ymax"]
 
         doscar_path = contents['DOSCAR']
+        poscar_path = contents.get('POSCAR')
 
         # Calculate the buffer value for xmax based on the DOSCAR file
         try:
             with open(doscar_path, 'r') as f:
                 lines = f.readlines()
 
-            fermi_energy = float(lines[5].split()[3])
-            num_points = int(lines[5].split()[2])
+            num_atoms, num_points, fermi_energy, lines_per_point = read_doscar_header(lines)
             energy = np.array([float(line.split()[0]) - fermi_energy for line in lines[6:6 + num_points]])
             total_dos = np.zeros(num_points)
 
-            current_line = 6 + num_points
-            num_atoms = int(lines[0].split()[0])
-            for _ in range(num_atoms):
-                current_line += 1
-                block = np.array([
-                    [float(values[0]) - fermi_energy] + [float(v) for v in values[1:]]
-                    for values in (lines[current_line + i].split() for i in range(num_points))
-                ])
-                total_dos += np.sum(block[:, 1:], axis=1)
-                current_line += num_points
+            atom_dos_blocks = read_atom_dos_blocks(lines, num_atoms, num_points, fermi_energy, lines_per_point)
+            atom_types = []
+            if poscar_path and os.path.exists(poscar_path):
+                with open(poscar_path, 'r') as f:
+                    atom_types = f.readlines()[5].split()
+            num_columns = atom_dos_blocks[0].shape[1]
+            total_col_indices = classify_orbitals(num_columns, atom_types)['total_col_indices']
+            for block in atom_dos_blocks:
+                total_dos += np.sum(block[:, total_col_indices], axis=1)
 
             energy_range_mask = (energy >= DEFAULTS["ymin"]) & (energy <= DEFAULTS["ymax"])
             dos_in_range = total_dos[energy_range_mask]
@@ -1268,43 +1194,26 @@ def update_spin_message(contents):
         else:
             spin_message = "Unknown DOSCAR format detected. Unable to determine spin polarization."
 
-        # Check the second block for lm-resolved orbital calculations
-        num_points = int(lines[5].split()[2])
-        second_block_start = 6 + num_points + 1
-        num_columns = len(lines[second_block_start].split())  # Use the second block to determine num_columns
+        # Check the second block for lm-resolved / non-collinear orbital layouts
+        num_atoms, num_points, fermi_energy, lines_per_point = read_doscar_header(lines)
+        atom_dos_blocks = read_atom_dos_blocks(lines, num_atoms, num_points, fermi_energy, lines_per_point)
+        num_columns = atom_dos_blocks[0].shape[1]
 
-        if num_columns == 10:
-            orbital_message = "lm-resolved calculation detected (LORBIT=11, 12, 13, or 14 (VASP>6)). Orbitals are resolved into individual components: px, py, pz, etc."
-        elif num_columns == 19:
-            orbital_message = "lm-resolved calculation detected (LORBIT=11, 12, 13, or 14 (VASP>6)). Orbitals are resolved into individual components: px, py, pz, etc. with respective spin states."
-        elif num_columns == 7:
-            orbital_message = "Spin-polarized collinear calculation with grouped orbitals detected (LORBIT=0, 1, 2, 5 or 10, ISPIN=2). Only total p- and d-orbital contributions are available (i.e., p = px + py + pz) with respective spin states."
-        elif num_columns == 5:
-            poscar_path = contents['POSCAR'] if isinstance(contents, dict) and 'POSCAR' in contents else None
-            atom_types = []
-            if poscar_path and os.path.exists(poscar_path):
-                with open(poscar_path, 'r') as f:
-                    poscar_lines = f.readlines()
-                atom_types = poscar_lines[5].split()
-            f_elements = [
-                "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu",
-                "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"
-            ]
-            contains_f_element = any(elem in atom_types for elem in f_elements)
-            if contains_f_element:
-                orbital_message = "f-block element detected with 5 columns: s, p, d, and f contributions are available (grouped)."
-            else:
-                orbital_message = "Regular grouped atomic contribution detected (LORBIT=0, 1, 2, 5 or 10). s and total p-orbital contributions are available (i.e., p = px + py + pz)."
-        elif num_columns == 4:
-            orbital_message = "Regular grouped atomic contribution detected (LORBIT=0, 1, 2, 5 or 10). Only total p- and d-orbital contributions are available (i.e., p = px + py + pz)."
-        elif num_columns == 17:
-            orbital_message = "lm-resolved calculation detected (LORBIT=11, 12, 13, or 14 (VASP>6)). Orbitals are resolved into individual components: px, py, pz, etc. up to the f orbital"
-        elif num_columns == 33:
-            orbital_message = "lm-resolved calculation detected (LORBIT=11, 12, 13, or 14 (VASP>6)). Orbitals are resolved into individual components: px, py, pz, etc. up to the f orbital with respective spin states."
-        elif num_columns == 9:
-            orbital_message = "Regular grouped atomic contribution detected (LORBIT=0, 1, 2, 5 or 10). s and total p-, d- and f-orbital contributions are available (i.e., p = px + py + pz) with respective spin states."
-        else:
-            orbital_message = "Unknown orbital format detected."
+        poscar_path = contents['POSCAR'] if isinstance(contents, dict) and 'POSCAR' in contents else None
+        atom_types = []
+        if poscar_path and os.path.exists(poscar_path):
+            with open(poscar_path, 'r') as f:
+                atom_types = f.readlines()[5].split()
+
+        orbital_info = classify_orbitals(num_columns, atom_types)
+        if orbital_info['is_noncollinear']:
+            # The total block alone can't distinguish non-collinear from
+            # ISPIN=1 (both have 3 columns: energy, DOS, integrated DOS) --
+            # VASP does force ISPIN=1 internally for non-collinear runs, so
+            # that message isn't wrong, just incomplete. Override it here
+            # since the atom block unambiguously shows non-collinear data.
+            spin_message = "Non-collinear calculation detected (LNONCOLLINEAR=.TRUE., internally ISPIN=1)."
+        orbital_message = orbital_info['description']
 
         spin_message += f" {orbital_message}"
         return spin_message

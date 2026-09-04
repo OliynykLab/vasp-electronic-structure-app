@@ -18,6 +18,226 @@ mendeleev_numbers = {
     "Am": 26, "Cm": 28, "Bk": 30, "Cf": 32, "Es": 34, "Fm": 36, "Md": 38, "No": 40, "Lr": 42,
 }
 
+# f-block elements, used to disambiguate the ambiguous "5 columns" (s, p, d, f
+# grouped) case from "5 columns" (s, py, pz, px lm-resolved, no d) case.
+f_elements = [
+    "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu",
+    "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"
+]
+
+# Non-collinear calculations (LNONCOLLINEAR = .TRUE.) print, for every orbital
+# (or orbital group), 4 columns instead of 1 (non-spin) or 2 (ISPIN=2): the
+# total DOS plus the mx/my/mz magnetization density. So the per-atom block's
+# value-column count is (number of orbital groups) * 4 instead of * 1 or * 2.
+# Column count alone can't always disambiguate this from a collinear file (a
+# non-collinear "4 groups" block and a collinear "16 columns, no spin" block
+# both have 16 value columns) -- see GitHub issue #4 -- but the common
+# LORBIT=11/12 cases below are unambiguous, since no collinear layout produces
+# 12, 36 or 64 value columns.
+NONCOLLINEAR_ORBITAL_GROUPS = {
+    12: ['s', 'p', 'd'],
+    36: ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz²', 'dxz', 'dx²-y²'],
+    64: ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz²', 'dxz', 'dx²-y²',
+         'fx(3x²-y²)', 'fxyz', 'fyz²', 'fz³', 'fxz²', 'fx(x²-y²)', 'fx(x²-3y²)'],
+}
+
+
+def read_doscar_header(lines):
+    """Parse the leading DOSCAR header fields.
+
+    Returns (num_atoms, num_points, fermi_energy, lines_per_point).
+
+    ``lines_per_point`` is normally 1 (one physical line per energy point per
+    atom), but VASP wraps very wide rows -- e.g. non-collinear + lm-resolved +
+    f-orbitals, which need 1 + 16*4 = 65 values -- across multiple physical
+    lines by reapplying the same FORTRAN format. That wrap width isn't
+    documented, so it's inferred here from the file's own line count instead
+    of being hard-coded.
+    """
+    num_atoms = int(lines[0].split()[0])
+    num_points = int(lines[5].split()[2])
+    fermi_energy = float(lines[5].split()[3])
+
+    denom = num_atoms * num_points
+    remaining_lines = len(lines) - 6 - num_points - num_atoms
+    if denom > 0 and remaining_lines > 0 and remaining_lines % denom == 0:
+        lines_per_point = remaining_lines // denom
+    else:
+        lines_per_point = 1
+
+    return num_atoms, num_points, fermi_energy, lines_per_point
+
+
+def read_atom_dos_blocks(lines, num_atoms, num_points, fermi_energy, lines_per_point):
+    """Read the per-atom projected-DOS blocks that follow the total DOS block.
+
+    Each returned block is an array of shape (num_points, 1 + value_columns);
+    column 0 is energy (relative to the Fermi level).
+    """
+    atom_dos_blocks = []
+    current_line = 6 + num_points
+    for _ in range(num_atoms):
+        current_line += 1  # skip this atom's own header line
+        block_rows = []
+        for i in range(num_points):
+            row_start = current_line + i * lines_per_point
+            tokens = []
+            for k in range(lines_per_point):
+                tokens.extend(lines[row_start + k].split())
+            block_rows.append([float(tokens[0]) - fermi_energy] + [float(v) for v in tokens[1:]])
+        atom_dos_blocks.append(np.array(block_rows))
+        current_line += num_points * lines_per_point
+    return atom_dos_blocks
+
+
+def classify_orbitals(num_columns, atom_types):
+    """Map a per-atom DOSCAR block's column count to orbital labels.
+
+    ``num_columns`` includes the leading energy column. ``atom_types`` is the
+    list of element symbols from the POSCAR, used only to disambiguate the
+    "5 columns" collinear case (s/p/d/f grouped vs. s/py/pz/px lm-resolved).
+
+    Returns a dict with:
+      - orbital_labels: list of orbital names for the per-atom checkboxes/plot
+      - orbital_indices: {label: column index} -- for non-collinear data this
+        points at each orbital's *total* (charge) sub-column, skipping its
+        mx/my/mz magnetization sub-columns
+      - total_col_indices: the columns to sum for an atom's "all orbitals"
+        total contribution (all value columns for collinear data; just the
+        total sub-columns for non-collinear data)
+      - is_noncollinear, is_spin_polarized, is_spin_polarized_and_im_resolved,
+        f_orbitals_spin, f_orbitals_im_resolved_spin: booleans used by the
+        plotting code to decide how to build traces
+      - description: a short human-readable string describing what was
+        detected, suitable for a status/debug message
+    """
+    value_cols = num_columns - 1
+    contains_f_element = any(elem in atom_types for elem in f_elements)
+
+    noncollinear_labels = NONCOLLINEAR_ORBITAL_GROUPS.get(value_cols)
+    if noncollinear_labels is not None:
+        group_size = len(noncollinear_labels)
+        total_col_indices = [1 + 4 * i for i in range(group_size)]
+        return {
+            'orbital_labels': noncollinear_labels,
+            'orbital_indices': dict(zip(noncollinear_labels, total_col_indices)),
+            'total_col_indices': total_col_indices,
+            'is_noncollinear': True,
+            'is_spin_polarized': False,
+            'is_spin_polarized_and_im_resolved': False,
+            'f_orbitals_spin': False,
+            'f_orbitals_im_resolved_spin': False,
+            'description': (
+                "Each orbital's DOS is split into a total component and "
+                "mx/my/mz magnetization density; only the total component is "
+                "plotted per orbital for now."
+            ),
+        }
+
+    is_im_resolved = num_columns == 10
+    is_spin_polarized = num_columns == 7
+    is_spin_polarized_and_im_resolved = num_columns == 19
+    f_orbitals_im_resolved = num_columns == 17
+    f_orbitals = contains_f_element and num_columns == 5
+    no_d_orbitals = (not contains_f_element) and num_columns == 5
+    f_orbitals_im_resolved_spin = num_columns == 33
+    f_orbitals_spin = num_columns == 9
+
+    if is_im_resolved:
+        orbital_labels = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz²', 'dxz', 'dx²-y²']
+        description = (
+            "lm-resolved calculation detected (LORBIT=11, 12, 13, or 14 "
+            "(VASP>6)). Orbitals are resolved into individual components: "
+            "px, py, pz, etc."
+        )
+    elif is_spin_polarized:
+        orbital_labels = ['s ↑', 's ↓', 'p ↑', 'p ↓', 'd ↑', 'd ↓']
+        description = (
+            "Spin-polarized collinear calculation with grouped orbitals "
+            "detected (LORBIT=0, 1, 2, 5 or 10, ISPIN=2). Only total p- and "
+            "d-orbital contributions are available (i.e., p = px + py + pz) "
+            "with respective spin states."
+        )
+    elif is_spin_polarized_and_im_resolved:
+        orbital_labels = [
+            "s ↑", "s ↓", "py ↑", "py ↓", "pz ↑", "pz ↓", "px ↑", "px ↓",
+            "dxy ↑", "dxy ↓", "dyz ↑", "dyz ↓", "dz² ↑", "dz² ↓", "dxz ↑", "dxz ↓", "dx²-y² ↑", "dx²-y² ↓"
+        ]
+        description = (
+            "lm-resolved calculation detected (LORBIT=11, 12, 13, or 14 "
+            "(VASP>6)). Orbitals are resolved into individual components: "
+            "px, py, pz, etc. with respective spin states."
+        )
+    elif f_orbitals:
+        orbital_labels = ["s", "p", "d", "f"]
+        description = "f-block element detected with 5 columns: s, p, d, and f contributions are available (grouped)."
+    elif no_d_orbitals:
+        orbital_labels = ["s", "py", "pz", "px"]
+        description = (
+            "Regular grouped atomic contribution detected (LORBIT=0, 1, 2, 5 "
+            "or 10). s and total p-orbital contributions are available (i.e., "
+            "p = px + py + pz)."
+        )
+    elif f_orbitals_im_resolved:
+        orbital_labels = [
+            's', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz²', 'dxz', 'dx²-y²',
+            'fx(3x²-y²)', 'fxyz', 'fyz²', 'fz³', 'fxz²', 'fx(x²-y²)', 'fx(x²-3y²)'
+        ]
+        description = (
+            "lm-resolved calculation detected (LORBIT=11, 12, 13, or 14 "
+            "(VASP>6)). Orbitals are resolved into individual components: "
+            "px, py, pz, etc. up to the f orbital"
+        )
+    elif f_orbitals_im_resolved_spin:
+        orbital_labels = [
+            's ↑', 's ↓', 'py ↑', 'py ↓', 'pz ↑', 'pz ↓', 'px ↑', 'px ↓',
+            'dxy ↑', 'dxy ↓', 'dyz ↑', 'dyz ↓', 'dz² ↑', 'dz² ↓', 'dxz ↑', 'dxz ↓',
+            'dx²-y² ↑', 'dx²-y² ↓',
+            'fx(3x²-y²) ↑', 'fx(3x²-y²) ↓',
+            'fxyz ↑', 'fxyz ↓',
+            'fyz² ↑', 'fyz² ↓',
+            'fz³ ↑', 'fz³ ↓',
+            'fxz² ↑', 'fxz² ↓',
+            'fx(x²-y²) ↑', 'fx(x²-y²) ↓',
+            'fx(x²-3y²) ↑', 'fx(x²-3y²) ↓'
+        ]
+        description = (
+            "lm-resolved calculation detected (LORBIT=11, 12, 13, or 14 "
+            "(VASP>6)). Orbitals are resolved into individual components: "
+            "px, py, pz, etc. up to the f orbital with respective spin states."
+        )
+    elif f_orbitals_spin:
+        orbital_labels = ['s ↑', 's ↓', 'p ↑', 'p ↓', 'd ↑', 'd ↓', 'f ↑', 'f ↓']
+        description = (
+            "Regular grouped atomic contribution detected (LORBIT=0, 1, 2, 5 "
+            "or 10). s and total p-, d- and f-orbital contributions are "
+            "available (i.e., p = px + py + pz) with respective spin states."
+        )
+    elif num_columns == 4:
+        orbital_labels = ["s", "p", "d"]
+        description = (
+            "Regular grouped atomic contribution detected (LORBIT=0, 1, 2, 5 "
+            "or 10). Only total p- and d-orbital contributions are available "
+            "(i.e., p = px + py + pz)."
+        )
+    else:
+        orbital_labels = []
+        description = "Unknown orbital format detected."
+
+    orbital_indices = {label: i + 1 for i, label in enumerate(orbital_labels)}
+    return {
+        'orbital_labels': orbital_labels,
+        'orbital_indices': orbital_indices,
+        'total_col_indices': list(range(1, num_columns)),
+        'is_noncollinear': False,
+        'is_spin_polarized': is_spin_polarized,
+        'is_spin_polarized_and_im_resolved': is_spin_polarized_and_im_resolved,
+        'f_orbitals_spin': f_orbitals_spin,
+        'f_orbitals_im_resolved_spin': f_orbitals_im_resolved_spin,
+        'description': description,
+    }
+
+
 def format_orbital_label(orbital):
     # 1. Subscript 3x², 3y², 3z², 3x³, etc.
     orbital_html = re.sub(r'3([xyz])²', r'<sub>3\1<sup>2</sup></sub>', orbital)
@@ -50,11 +270,7 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
     with open(doscar_filename, 'r') as f:
         lines = f.readlines()
 
-    # Extract the number of atoms from the first line of the DOSCAR file
-    num_atoms = int(lines[0].split()[0])
-
-    fermi_energy = float(lines[5].split()[3])
-    num_points = int(lines[5].split()[2])
+    num_atoms, num_points, fermi_energy, lines_per_point = read_doscar_header(lines)
 
     # Extract the first block (Total DOS)
     first_block = np.array([
@@ -69,22 +285,38 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
     num_columns_first_block = len(lines[6].split())
     has_spin_data = num_columns_first_block == 5  # Energy, DOS_up, DOS_down, integrated_DOS_up, integrated_DOS_down
 
-    # Read atom contributions from atom blocks
-    atom_dos_blocks = []
-    current_line = 6 + num_points
-    for _ in range(num_atoms):
-        current_line += 1
-        block = np.array([
-            [float(values[0]) - fermi_energy] + [float(v) for v in values[1:]]
-            for values in (lines[current_line + i].split() for i in range(num_points))
-        ])
-        atom_dos_blocks.append(block)
-        current_line += num_points
+    # Read atom contributions from atom blocks (lines_per_point > 1 when VASP
+    # wraps very wide rows -- e.g. non-collinear + lm-resolved + f -- across
+    # multiple physical lines; see read_doscar_header)
+    atom_dos_blocks = read_atom_dos_blocks(lines, num_atoms, num_points, fermi_energy, lines_per_point)
 
-    # Sum all atom contributions to calculate total DOS
+    # Get POSCAR data early, since classify_orbitals needs atom_types to
+    # disambiguate a couple of column-count cases
+    with open(poscar_filename, 'r') as f:
+        poscar_lines = f.readlines()
+    atom_types = poscar_lines[5].split()
+    atom_counts = list(map(int, poscar_lines[6].split()))
+
+    # Dynamically determine the number of columns in the atom blocks, and map
+    # that to orbital labels/indices (handles collinear and non-collinear
+    # DOSCAR layouts -- see classify_orbitals)
+    num_columns = atom_dos_blocks[0].shape[1]
+    orbital_info = classify_orbitals(num_columns, atom_types)
+    orbital_labels = orbital_info['orbital_labels']
+    orbital_indices = orbital_info['orbital_indices']
+    total_col_indices = orbital_info['total_col_indices']
+    is_spin_polarized = orbital_info['is_spin_polarized']
+    is_spin_polarized_and_im_resolved = orbital_info['is_spin_polarized_and_im_resolved']
+    f_orbitals_spin = orbital_info['f_orbitals_spin']
+    f_orbitals_im_resolved_spin = orbital_info['f_orbitals_im_resolved_spin']
+
+    # Sum all atom contributions to calculate total DOS. For non-collinear
+    # data, total_col_indices only picks out each orbital's total (charge)
+    # sub-column, skipping its mx/my/mz magnetization sub-columns -- summing
+    # those in would mix signed magnetization into a particle-count total.
     total_dos = np.zeros(num_points)
     for block in atom_dos_blocks:
-        total_dos += np.sum(block[:, 1:], axis=1)  # Sum all orbitals for each atom
+        total_dos += np.sum(block[:, total_col_indices], axis=1)
 
     # Dynamically calculate xmax based on the maximum DOS value within the energy range
     if xmax is None:
@@ -105,148 +337,12 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
     # Check if we should display spins separately
     display_spin_separated = display_spins and 'display_spins' in display_spins and has_spin_data
 
-    # Get POSCAR data
-    with open(poscar_filename, 'r') as f:
-        poscar_lines = f.readlines()
-    atom_types = poscar_lines[5].split()
-    atom_counts = list(map(int, poscar_lines[6].split()))
-
     # Sort atom types by Mendeleev numbers
     atom_types_sorted = sorted(atom_types, key=lambda x: mendeleev_numbers.get(x, float('inf')))
 
     # Assign colors based on order
     default_colors = ['blue', 'red', 'green']
     color_map = {atom: default_colors[i % len(default_colors)] for i, atom in enumerate(atom_types_sorted)}
-
-    # Define f-elements
-    f_elements = [
-        "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu",
-        "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"
-    ]
-
-    # Dynamically determine the number of columns in the atom blocks
-    num_columns = atom_dos_blocks[0].shape[1]
-
-    # Check if any f-element is present in atom_types
-    contains_f_element = any(elem in atom_types for elem in f_elements)
-    f_orbitals = contains_f_element and num_columns == 5
-
-    # Check if the atom_dos_blocks contain specific column counts and set flags accordingly
-    is_im_resolved = num_columns == 10
-    is_spin_polarized = num_columns == 7
-    is_spin_polarized_and_im_resolved = num_columns == 19
-    f_orbitals_im_resolved = num_columns == 17
-    no_d_orbitals = num_columns == 5  
-    f_orbitals_im_resolved_spin = num_columns == 33
-    f_orbitals_spin = num_columns == 9
-
-    # Define orbital labels and indices based on the number of columns
-    if is_im_resolved:
-        orbital_labels = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz²', 'dxz', 'dx²-y²']
-        orbital_indices = {"s": 1, "py": 2, "pz": 3, "px": 4, "dxy": 5, "dyz": 6, "dz²": 7, "dxz": 8, "dx²-y²": 9}
-    elif is_spin_polarized:
-        orbital_labels = ['s ↑', 's ↓', 'p ↑', 'p ↓', 'd ↑', 'd ↓']
-        orbital_indices = {"s ↑": 1, "s ↓": 2, "p ↑": 3, "p ↓": 4, "d ↑": 5, "d ↓": 6}
-    elif is_spin_polarized_and_im_resolved:
-        orbital_labels = [
-            "s ↑", "s ↓", "py ↑", "py ↓", "pz ↑", "pz ↓", "px ↑", "px ↓",
-                "dxy ↑", "dxy ↓", "dyz ↑", "dyz ↓", "dz² ↑", "dz² ↓", "dxz ↑", "dxz ↓", "dx²-y² ↑", "dx²-y² ↓"
-        ]
-        orbital_indices = {
-            "s ↑": 1, "s ↓": 2, "py ↑": 3, "py ↓": 4, "pz ↑": 5, "pz ↓": 6, "px ↑": 7, "px ↓": 8,
-            "dxy ↑": 9, "dxy ↓": 10, "dyz ↑": 11, "dyz ↓": 12, "dz² ↑": 13, "dz² ↓": 14, "dxz ↑": 15, "dxz ↓": 16, "dx²-y² ↑": 17, "dx²-y² ↓": 18
-        }
-    elif f_orbitals:
-        orbital_labels = ["s", "p", "d", "f"]
-        orbital_indices = {"s": 1, "p": 2, "d": 3, "f": 4}
-    elif no_d_orbitals:
-        orbital_labels = ["s", "py", "pz", "px"]
-        orbital_indices = {"s": 1, "py": 2, "pz": 3, "px": 4}
-    elif f_orbitals_im_resolved:
-        orbital_labels = ['s',
-                'py',
-                'pz',
-                'px',
-                'dxy',
-                'dyz',
-                'dz²',
-                'dxz',
-                'dx²-y²',
-                'fx(3x²-y²)',
-                'fxyz',
-                'fyz²',
-                'fz³',
-                'fxz²',
-                'fx(x²-y²)',
-                'fx(x²-3y²)'],
-        orbital_indices = {
-            "s": 1, 
-            "py": 2, 
-            "pz": 3, 
-            "px": 4, 
-            "dxy": 5, 
-            "dyz": 6, 
-            "dz²": 7, 
-            "dxz": 8, 
-            "dx²-y²": 9,
-            "fx(3x²-y²)": 10,
-            "fxyz": 11,
-            "fyz²": 12,
-            "fz³": 13,
-            "fxz²": 14,
-            "fx(x²-y²)": 15,
-            "fx(x²-3y²)": 16
-        }
-    elif f_orbitals_im_resolved_spin:
-        orbital_labels = ['s ↑', 's ↓', 'py ↑', 'py ↓', 'pz ↑', 'pz ↓', 'px ↑', 'px ↓',
-                          'dxy ↑', 'dxy ↓', 'dyz ↑', 'dyz ↓', 'dz² ↑', 'dz² ↓', 'dxz ↑', 'dxz ↓',
-                          'dx²-y² ↑', 'dx²-y² ↓',
-                          'fx(3x²-y²) ↑', 'fx(3x²-y²) ↓',
-                          'fxyz ↑', 'fxyz ↓',
-                          'fyz² ↑', 'fyz² ↓',
-                          'fz³ ↑', 'fz³ ↓',
-                          'fxz² ↑', 'fxz² ↓',
-                          'fx(x²-y²) ↑', 'fx(x²-y²) ↓',
-                          'fx(x²-3y²) ↑', 'fx(x²-3y²) ↓']
-        orbital_indices = {
-            "s ↑": 1, 
-            "s ↓": 2, 
-            "py ↑": 3, 
-            "py ↓": 4, 
-            "pz ↑": 5, 
-            "pz ↓": 6, 
-            "px ↑": 7, 
-            "px ↓": 8,
-            "dxy ↑": 9, 
-            "dxy ↓": 10, 
-            "dyz ↑": 11, 
-            "dyz ↓": 12, 
-            "dz² ↑": 13, 
-            "dz² ↓": 14, 
-            "dxz ↑": 15, 
-            "dxz ↓": 16,
-            "dx²-y² ↑": 17,
-            "dx²-y² ↓": 18,
-            'fx(3x²-y²) ↑': 19,
-            'fx(3x²-y²) ↓': 20,
-            'fxyz ↑': 21,
-            'fxyz ↓': 22,
-            'fyz² ↑': 23,
-            'fz³ ↑': 24,
-            'fz³ ↓': 25,
-            'fxz² ↑': 26,
-            'fxz² ↓': 27,
-            'fx(x²-y²) ↑': 28,
-            'fx(x²-y²) ↓': 29,
-            'fx(x²-3y²) ↑': 30,
-            'fx(x²-3y²) ↓': 31
-        }
-    elif f_orbitals_spin:
-        orbital_labels = ['s ↑', 's ↓', 'p ↑', 'p ↓', 'd ↑', 'd ↓', 'f ↑', 'f ↓']
-        orbital_indices = {"s ↑": 1, "s ↓": 2, "p ↑": 3, "p ↓": 4, "d ↑": 5, "d ↓": 6, "f ↑": 7, "f ↓": 8}
-    else:
-        orbital_labels = ['s', 'p', 'd']
-        orbital_indices = {"s": 1, "p": 2, "d": 3}
 
     # Build traces for the final figure
     traces = []
@@ -299,16 +395,7 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
 
     # Handle atomic contributions if selected_atoms or toggled_atoms is provided
     if selected_atoms or toggled_atoms:
-        atom_dos_blocks = []
-        current_line = 6 + num_points
-        for _ in range(num_atoms):
-            current_line += 1
-            block = np.array([
-                [float(values[0]) - fermi_energy] + [float(v) for v in values[1:]]
-                for values in (lines[current_line + i].split() for i in range(num_points))
-            ])
-            atom_dos_blocks.append(block)
-            current_line += num_points
+        # atom_dos_blocks was already parsed above (wrap-aware); no need to re-read it here.
 
         # Create a mapping of atom type to its starting indices and counts
         atom_type_ranges = {}
@@ -341,7 +428,7 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
             if toggled_atoms and toggled_atoms.get(atom_type, False):
                 total_contribution = np.zeros(num_points)
                 for atom_index in range(start_index, end_index):
-                    total_contribution += np.sum(atom_dos_blocks[atom_index][:, 1:], axis=1)  # Sum all columns except energy
+                    total_contribution += np.sum(atom_dos_blocks[atom_index][:, total_col_indices], axis=1)  # Sum orbital totals (skips mx/my/mz for non-collinear data)
                 
                 if display_spin_separated and has_spin_data and (is_spin_polarized or is_spin_polarized_and_im_resolved or f_orbitals_spin or f_orbitals_im_resolved_spin):
                     # For spin-polarized atomic contributions, split into up and down
