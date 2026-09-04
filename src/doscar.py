@@ -561,7 +561,13 @@ def parse_doscar_and_plot(doscar_filename, poscar_filename, xmin=None, xmax=None
             y=legend_y_adjusted,
             xanchor='right',
             yanchor='top',
-            bgcolor='rgba(0,0,0,0)'
+            bgcolor='rgba(0,0,0,0)',
+            # Each entry has its own legendgroup (see use_marker_dot_legend),
+            # so tracegroupgap is the only lever for the gap between one
+            # entry and the next; 0 packs entries as tightly as Plotly allows
+            # without touching font/marker size, which are unchanged from
+            # the plot's normal 20pt / 10px.
+            tracegroupgap=0
         ),
         plot_bgcolor='white',
         paper_bgcolor='white',

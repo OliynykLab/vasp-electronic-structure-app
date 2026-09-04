@@ -284,7 +284,16 @@ def build_bonding_figure(
             ticks="outside" if show_y_scale else "",
             showticklabels=show_y_scale,
         ),
-        legend=dict(x=legend_x, y=legend_y, xanchor="right", yanchor="top", bgcolor="rgba(0,0,0,0)"),
+        legend=dict(
+            x=legend_x, y=legend_y, xanchor="right", yanchor="top",
+            bgcolor="rgba(0,0,0,0)",
+            # Each entry has its own legendgroup (see use_marker_dot_legend),
+            # so tracegroupgap is the only lever for the gap between one
+            # entry and the next; 0 packs entries as tightly as Plotly allows
+            # without touching font/marker size, which are unchanged from
+            # the plot's normal 20pt / 10px.
+            tracegroupgap=0,
+        ),
         plot_bgcolor="white",
         paper_bgcolor="white",
         margin=dict(l=50, r=50, t=50, b=50),
