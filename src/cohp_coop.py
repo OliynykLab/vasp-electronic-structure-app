@@ -137,52 +137,6 @@ def auto_x_limits(raw_data, unique_pairs, kind):
     return int(round(xmin)), int(round(xmax))
 
 
-def use_half_length_legend_lines(fig, itemwidth=30):
-    """Shrink each trace's legend line-swatch to half its length, without
-    touching its width/color/dash.
-
-    Plotly's legend.itemwidth (the reserved width of the icon column a
-    "lines" trace draws its swatch into) has a hard floor of 30px -- Plotly
-    rejects anything smaller, so the icon column itself can't be narrowed.
-    But the LINE drawn inside that column is just a styled path, so a custom
-    dash pattern sized to half the column (a visible dash exactly itemwidth/2
-    long, then a gap far longer than what's left of the column) makes only
-    the first half of the icon show ink. Since the real plotted line and its
-    legend icon share the same trace, applying that dash directly would also
-    dash the actual curve -- so each visible trace is hidden from the legend
-    and paired with an invisible-on-plot line-only proxy trace (a single
-    (None, None) point) that carries the half-length dash instead. Both
-    share a legendgroup (keyed by trace position, not name -- several traces
-    can share a display name, e.g. every pair's "ICOHP" overlay, and
-    Plotly's default groupclick toggles a whole legendgroup together, so a
-    name-keyed group would wrongly couple all of those) so clicking the
-    icon in the legend still shows/hides just that one real line, same as
-    clicking a normal legend entry would.
-    """
-    half_dash = f"{itemwidth / 2}px,1000px"
-    proxies = []
-    for i, trace in enumerate(fig.data):
-        if trace.showlegend is False:
-            continue  # already intentionally hidden
-        line = trace.line
-        group = f"__legend_half_{i}"
-        trace.showlegend = False
-        trace.legendgroup = group
-        proxies.append(go.Scatter(
-            x=[None], y=[None],
-            mode='lines',
-            line=dict(color=line.color if line is not None else None,
-                      width=line.width if line is not None else None,
-                      dash=half_dash),
-            name=trace.name,
-            legendgroup=group,
-            showlegend=True,
-        ))
-    for proxy in proxies:
-        fig.add_trace(proxy)
-    return fig
-
-
 def build_bonding_figure(
     raw_data, folder_name, unique_pairs, color_map, show_map, icohp_map,
     xmin, xmax, ymin, ymax, legend_x, legend_y, show_titles, show_axis_scale,
@@ -321,7 +275,5 @@ def build_bonding_figure(
         line=dict(color="black", width=2),
         fillcolor="rgba(0,0,0,0)",
     )
-
-    use_half_length_legend_lines(fig)
 
     return fig
