@@ -28,6 +28,18 @@ if [ ! -d "$APP_PATH" ]; then
   exit 1
 fi
 
+echo "==> Patching kaleido's bundled wrapper script"
+# kaleido 0.2.1 ships a bundled executable/kaleido wrapper shell script with
+# two unquoted variable expansions (`cd $DIR` and `./bin/kaleido $@`) that
+# word-split on spaces -- breaking Save-as-PNG the moment any ancestor path
+# contains one, which "DOSCAR Plotter.app" always does. Patch every real
+# copy PyInstaller creates (Contents/Frameworks/... is normally just a
+# symlink to Contents/Resources/..., so `-type f` naturally skips it and
+# patches the one real file underneath).
+while IFS= read -r -d '' script; do
+  sed -i '' 's/^cd \$DIR$/cd "$DIR"/; s#^\./bin/kaleido \$@$#./bin/kaleido "$@"#' "$script"
+done < <(find "$APP_PATH" -type f -path '*/kaleido/executable/kaleido' -print0)
+
 echo "==> Building disk image"
 DMG_PATH="dist/${APP_NAME// /-}-mac.dmg"
 rm -f "$DMG_PATH"

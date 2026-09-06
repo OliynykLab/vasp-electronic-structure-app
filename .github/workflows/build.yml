@@ -29,6 +29,21 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller packaging/doscar.spec --noconfirm --clean
 
+      - name: Patch kaleido's bundled wrapper script
+        # kaleido 0.2.1 ships a bundled executable/kaleido wrapper shell
+        # script with two unquoted variable expansions (`cd $DIR` and
+        # `./bin/kaleido $@`) that word-split on spaces -- breaking
+        # Save-as-PNG the moment any ancestor path contains one, which
+        # "DOSCAR Plotter.app" always does. Patch every real copy
+        # PyInstaller creates (Contents/Frameworks/... is normally just a
+        # symlink to Contents/Resources/..., so `-type f` naturally skips
+        # it and patches the one real file underneath).
+        run: |
+          APP_NAME="DOSCAR Plotter"
+          while IFS= read -r -d '' script; do
+            sed -i '' 's/^cd \$DIR$/cd "$DIR"/; s#^\./bin/kaleido \$@$#./bin/kaleido "$@"#' "$script"
+          done < <(find "dist/$APP_NAME.app" -type f -path '*/kaleido/executable/kaleido' -print0)
+
       - name: Create DMG
         run: |
           APP_NAME="DOSCAR Plotter"
