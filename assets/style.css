@@ -284,7 +284,10 @@ body {
   flex: 0 0 460px;
   min-width: 380px;
   max-width: 560px;
+  /* Horizontal scroll (for a table wider than the pane) lives here, not on
+     .table-scroll below -- see the comment there for why. */
   overflow-y: auto;
+  overflow-x: auto;
   padding: 18px 24px 32px 18px;
   display: flex;
   flex-direction: column;
@@ -293,23 +296,64 @@ body {
   background: var(--bg);
 }
 
-/* DOSCAR's atomic-contributions table has a color picker plus a wide
-   orbital-checkbox column, so it gets extra room. */
-#doscar-page .atomic-pane {
-  flex-basis: 560px;
-  min-width: 460px;
-  max-width: 680px;
+/* Both plots render at a fixed width regardless of container (`width=400`
+   in the Plotly layout in src/doscar.py and src/cohp_coop.py) -- a
+   dcc.Graph doesn't scale a fixed-width figure down to fit a smaller box,
+   it just gets clipped. So the plot-pane's width is fixed (grow: 0,
+   shrink: 0) at exactly what its plot(s) need to render in full -- one
+   plot for DOSCAR, two side by side for COHP/COOP -- and never shrinks
+   below that no matter how narrow the window gets; the atomic-pane next
+   to it (flex-grow AND flex-shrink: 1) is what absorbs both the extra
+   room on a wide window (growing out to the edge instead of leaving a gap
+   of bare page background there) and the squeeze on a narrow one. */
+#doscar-page .plot-pane {
+  flex: 0 0 520px;
 }
 
-/* The COHP/COOP element-pair table has far fewer columns than DOSCAR's, so
-   it needs less room — but still enough to keep the Pair column readable
-   next to the Color/Show/ICOHP columns. Narrower than DOSCAR's pane is also
-   what leaves the plot-pane enough width for the COHP and COOP plots to sit
-   side by side instead of wrapping to stacked. */
+/* DOSCAR's atomic-contributions table has a color picker plus a wide
+   orbital-checkbox column (up to 32 for the lm-resolved + spin case), so
+   it wants a lot more room than COHP/COOP's -- wide enough that most rows
+   lay their orbitals out in 1-2 lines instead of wrapping to many.
+   .data-table's own width: 100% (unchanged) is what makes the table follow
+   this pane out to whatever width it grows to, instead of leaving the
+   extra space empty *inside* the pane. */
+#doscar-page .atomic-pane {
+  flex: 1 1 900px;
+  min-width: 380px;
+  max-width: 1400px;
+  /* The shared .atomic-pane rule's 18px top / 32px bottom padding is
+     generous breathing room COHP/COOP's usually-short table can afford;
+     DOSCAR's table (one row per atom type, plus Total) needs the height
+     back more than the padding, so it gets less of it here. */
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* Same reasoning throughout this block: DOSCAR's table can run to many
+   rows, so every bit of fixed vertical padding gets shaved down here to
+   fit more of them before .atomic-pane's own scroll has to take over --
+   COHP/COOP's much shorter table keeps the shared, roomier spacing. */
+#doscar-page .atomic-pane .card {
+  padding: 10px 18px;
+}
+
+#doscar-page .card-header-row {
+  margin-bottom: 6px;
+}
+
+/* Wide enough for the COHP and COOP plot cards to sit side by side (see
+   .dual-plot-row) without wrapping to stacked, at any window size. */
+#cohp-page .plot-pane {
+  flex: 0 0 960px;
+}
+
+/* The COHP/COOP element-pair table has far fewer columns than DOSCAR's
+   (no orbital checkboxes), so it needs a lower ceiling when it grows to
+   fill extra window width. */
 #cohp-page .atomic-pane {
-  flex-basis: 340px;
+  flex: 1 1 340px;
   min-width: 300px;
-  max-width: 400px;
+  max-width: 700px;
 }
 
 #cohp-page .atom-name-cell {
@@ -618,7 +662,19 @@ body {
 /* ---------------------------------- table ---------------------------------- */
 
 .table-scroll {
-  overflow-x: auto;
+  /* Horizontal scroll used to live here (overflow-x: auto), but CSS
+     doesn't let one axis be "auto" while the other is "visible" -- the
+     spec forces both non-visible axes to compute to auto together,
+     no matter which one you actually set (confirmed: even writing
+     overflow-y: visible explicitly here, computed overflow-y still came
+     back "auto"). That silently made this a SECOND vertical clipping box
+     sized to just the table's own content (~250px), which is what was
+     clipping an open color-dropdown's menu almost immediately regardless
+     of how much visibly-empty room .atomic-pane still had below it. Moved
+     the horizontal scroll up to .atomic-pane instead, whose own
+     overflow-y: auto is the real, much more generous scroll boundary --
+     this element no longer sets any overflow, so it can't reintroduce the
+     same coupling. */
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }
@@ -651,11 +707,29 @@ body {
   z-index: 1;
 }
 
+/* Same reasoning as #doscar-page .data-table tbody td: only one header
+   row, but every bit counts toward fitting DOSCAR's often-many-row table
+   without scrolling. */
+#doscar-page .data-table thead th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
 .data-table tbody td {
   text-align: center;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
+}
+
+/* DOSCAR's table can run to many rows (one per atom type, plus Total) --
+   each row's own padding adds up fast across all of them, so it gets a
+   tighter vertical padding than the shared default above to fit more rows
+   before .atomic-pane's scroll has to kick in. Horizontal padding is
+   unchanged. */
+#doscar-page .data-table tbody td {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .data-table tbody tr:last-child td {
@@ -690,7 +764,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 2px 10px;
+  gap: 0 10px;
 }
 
 .orbital-checklist label {
@@ -701,6 +775,14 @@ body {
   padding: 3px 0;
   cursor: pointer;
   white-space: nowrap;
+}
+
+/* Same reasoning as #doscar-page .data-table tbody td above: this padding
+   is per wrapped line of orbital checkboxes, and a row can wrap to 2-3
+   lines, across as many rows as there are atom types -- shaving it down
+   measurably shortens the whole table. */
+#doscar-page .orbital-checklist label {
+  padding: 1px 0;
 }
 
 .orbital-checklist input[type="checkbox"] {
