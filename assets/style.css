@@ -284,7 +284,10 @@ body {
   flex: 0 0 460px;
   min-width: 380px;
   max-width: 560px;
+  /* Horizontal scroll (for a table wider than the pane) lives here, not on
+     .table-scroll below -- see the comment there for why. */
   overflow-y: auto;
+  overflow-x: auto;
   padding: 18px 24px 32px 18px;
   display: flex;
   flex-direction: column;
@@ -659,7 +662,19 @@ body {
 /* ---------------------------------- table ---------------------------------- */
 
 .table-scroll {
-  overflow-x: auto;
+  /* Horizontal scroll used to live here (overflow-x: auto), but CSS
+     doesn't let one axis be "auto" while the other is "visible" -- the
+     spec forces both non-visible axes to compute to auto together,
+     no matter which one you actually set (confirmed: even writing
+     overflow-y: visible explicitly here, computed overflow-y still came
+     back "auto"). That silently made this a SECOND vertical clipping box
+     sized to just the table's own content (~250px), which is what was
+     clipping an open color-dropdown's menu almost immediately regardless
+     of how much visibly-empty room .atomic-pane still had below it. Moved
+     the horizontal scroll up to .atomic-pane instead, whose own
+     overflow-y: auto is the real, much more generous scroll boundary --
+     this element no longer sets any overflow, so it can't reintroduce the
+     same coupling. */
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }

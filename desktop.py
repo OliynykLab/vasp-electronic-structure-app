@@ -27,14 +27,21 @@ from app import app as dash_app
 webview.settings['ALLOW_DOWNLOADS'] = True
 
 WINDOW_TITLE = "DOSCAR Plotter"
-# Wide enough that the COHP/COOP page's two plots sit side by side by
-# default instead of wrapping to stacked (see .dual-plot-row / #cohp-page
-# .atomic-pane in assets/style.css) — narrower windows still work, they just
-# wrap.
+# Wide enough for the COHP/COOP page's two plots to sit side by side (see
+# .dual-plot-row / #cohp-page .plot-pane in assets/style.css, which pins
+# that pane's width so the plots always stay side by side regardless of
+# window width -- narrower windows just leave less room for the
+# element-pairs pane next to them).
 START_WIDTH = 1660
-START_HEIGHT = 900
 MIN_WIDTH = 1100
-MIN_HEIGHT = 700
+# Tall enough that DOSCAR's atomic-contributions table -- which can run to
+# many rows, one per atom type -- has room for a color-picker dropdown
+# (~200px, 9 options) to open near the bottom row without the pane's own
+# scroll clipping it. min_size is a hard floor a user can't resize below,
+# so it's worth keeping generous even though the table itself adapts (see
+# #doscar-page rules in assets/style.css) down to shorter windows too.
+START_HEIGHT = 980
+MIN_HEIGHT = 800
 
 
 def _find_free_port() -> int:
