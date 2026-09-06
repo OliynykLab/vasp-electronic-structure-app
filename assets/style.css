@@ -293,35 +293,46 @@ body {
   background: var(--bg);
 }
 
-/* DOSCAR's plot itself renders at a fixed width (see the `width=400` Plotly
-   layout in src/doscar.py), so growing the plot-pane past what that plot
-   card actually needs just leaves dead space -- capping it here hands that
-   room to the atomic-contributions pane instead. */
+/* Both plots render at a fixed width regardless of container (`width=400`
+   in the Plotly layout in src/doscar.py and src/cohp_coop.py) -- a
+   dcc.Graph doesn't scale a fixed-width figure down to fit a smaller box,
+   it just gets clipped. So the plot-pane's width is fixed (grow: 0,
+   shrink: 0) at exactly what its plot(s) need to render in full -- one
+   plot for DOSCAR, two side by side for COHP/COOP -- and never shrinks
+   below that no matter how narrow the window gets; the atomic-pane next
+   to it (flex-grow AND flex-shrink: 1) is what absorbs both the extra
+   room on a wide window (growing out to the edge instead of leaving a gap
+   of bare page background there) and the squeeze on a narrow one. */
 #doscar-page .plot-pane {
-  flex: 0 1 520px;
-  max-width: 520px;
+  flex: 0 0 520px;
 }
 
 /* DOSCAR's atomic-contributions table has a color picker plus a wide
-   orbital-checkbox column (up to 32 for the lm-resolved + spin case), so it
-   gets a lot more room -- wide enough that most rows lay their orbitals out
-   in 1-2 lines instead of wrapping to many, which is what was forcing the
-   vertical scroll. */
+   orbital-checkbox column (up to 32 for the lm-resolved + spin case), so
+   it wants a lot more room than COHP/COOP's -- wide enough that most rows
+   lay their orbitals out in 1-2 lines instead of wrapping to many.
+   .data-table's own width: 100% (unchanged) is what makes the table follow
+   this pane out to whatever width it grows to, instead of leaving the
+   extra space empty *inside* the pane. */
 #doscar-page .atomic-pane {
-  flex-basis: 900px;
-  min-width: 700px;
-  max-width: 1200px;
+  flex: 1 1 900px;
+  min-width: 380px;
+  max-width: 1400px;
 }
 
-/* The COHP/COOP element-pair table has far fewer columns than DOSCAR's, so
-   it needs less room — but still enough to keep the Pair column readable
-   next to the Color/Show/ICOHP columns. Narrower than DOSCAR's pane is also
-   what leaves the plot-pane enough width for the COHP and COOP plots to sit
-   side by side instead of wrapping to stacked. */
+/* Wide enough for the COHP and COOP plot cards to sit side by side (see
+   .dual-plot-row) without wrapping to stacked, at any window size. */
+#cohp-page .plot-pane {
+  flex: 0 0 960px;
+}
+
+/* The COHP/COOP element-pair table has far fewer columns than DOSCAR's
+   (no orbital checkboxes), so it needs a lower ceiling when it grows to
+   fill extra window width. */
 #cohp-page .atomic-pane {
-  flex-basis: 340px;
+  flex: 1 1 340px;
   min-width: 300px;
-  max-width: 400px;
+  max-width: 700px;
 }
 
 #cohp-page .atom-name-cell {
