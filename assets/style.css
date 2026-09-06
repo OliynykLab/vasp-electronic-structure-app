@@ -318,6 +318,24 @@ body {
   flex: 1 1 900px;
   min-width: 380px;
   max-width: 1400px;
+  /* The shared .atomic-pane rule's 18px top / 32px bottom padding is
+     generous breathing room COHP/COOP's usually-short table can afford;
+     DOSCAR's table (one row per atom type, plus Total) needs the height
+     back more than the padding, so it gets less of it here. */
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* Same reasoning throughout this block: DOSCAR's table can run to many
+   rows, so every bit of fixed vertical padding gets shaved down here to
+   fit more of them before .atomic-pane's own scroll has to take over --
+   COHP/COOP's much shorter table keeps the shared, roomier spacing. */
+#doscar-page .atomic-pane .card {
+  padding: 10px 18px;
+}
+
+#doscar-page .card-header-row {
+  margin-bottom: 6px;
 }
 
 /* Wide enough for the COHP and COOP plot cards to sit side by side (see
@@ -674,11 +692,29 @@ body {
   z-index: 1;
 }
 
+/* Same reasoning as #doscar-page .data-table tbody td: only one header
+   row, but every bit counts toward fitting DOSCAR's often-many-row table
+   without scrolling. */
+#doscar-page .data-table thead th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
 .data-table tbody td {
   text-align: center;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
+}
+
+/* DOSCAR's table can run to many rows (one per atom type, plus Total) --
+   each row's own padding adds up fast across all of them, so it gets a
+   tighter vertical padding than the shared default above to fit more rows
+   before .atomic-pane's scroll has to kick in. Horizontal padding is
+   unchanged. */
+#doscar-page .data-table tbody td {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .data-table tbody tr:last-child td {
@@ -713,7 +749,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 2px 10px;
+  gap: 0 10px;
 }
 
 .orbital-checklist label {
@@ -724,6 +760,14 @@ body {
   padding: 3px 0;
   cursor: pointer;
   white-space: nowrap;
+}
+
+/* Same reasoning as #doscar-page .data-table tbody td above: this padding
+   is per wrapped line of orbital checkboxes, and a row can wrap to 2-3
+   lines, across as many rows as there are atom types -- shaving it down
+   measurably shortens the whole table. */
+#doscar-page .orbital-checklist label {
+  padding: 1px 0;
 }
 
 .orbital-checklist input[type="checkbox"] {
