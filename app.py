@@ -912,6 +912,31 @@ def save_plot(n_clicks, figure, folder_name):
 
 
 @app.callback(
+    Output('xmin', 'value', allow_duplicate=True),
+    Output('xmax', 'value', allow_duplicate=True),
+    Output('ymin', 'value', allow_duplicate=True),
+    Output('ymax', 'value', allow_duplicate=True),
+    Input('uploaded-contents', 'data'),
+    prevent_initial_call=True
+)
+def reset_axes_on_file_upload(contents):
+    """Clear the axis boxes whenever a new file is uploaded, so switching
+    from one folder to another re-derives fresh limits for the new data
+    instead of silently keeping the previous file's numbers.
+
+    xmin/xmax go to None: update_graph() already auto-calculates both from
+    scratch whenever xmax is None (the same path first-load already takes),
+    so clearing them here reuses that logic rather than duplicating it.
+    ymin/ymax have no auto-calc path -- they're always used as typed -- so
+    they reset to the fixed defaults instead, same as the "Reset axes"
+    button.
+    """
+    if not contents or not isinstance(contents, dict) or 'DOSCAR' not in contents:
+        raise PreventUpdate
+    return None, None, DEFAULTS["ymin"], DEFAULTS["ymax"]
+
+
+@app.callback(
     Output({'type': 'atom-checkbox', 'index': ALL}, 'value', allow_duplicate=True),
     Output({'type': 'toggle-total', 'index': ALL}, 'value', allow_duplicate=True),
     Input('uploaded-contents', 'data'),
