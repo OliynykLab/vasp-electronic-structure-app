@@ -139,7 +139,8 @@ let CI do both — see below).
 ```bash
 # macOS
 ./build_mac.sh
-# → dist/VASP Plotter.app and dist/vasp-plotter-app-mac.dmg
+# → dist/VASP Plotter.app and dist/vasp-plotter-app-mac.dmg,
+#   and installs the app to /Applications (NO_INSTALL=1 ./build_mac.sh to skip)
 
 # Windows (from cmd or PowerShell)
 build_windows.bat
@@ -151,6 +152,13 @@ Both scripts create their own build virtualenv, install
 [packaging/vasp-plotter-app.spec](packaging/vasp-plotter-app.spec). The bundle is sizable
 (several hundred MB) because Kaleido ships its own headless-Chromium binary
 for PNG export — that's expected.
+
+On macOS, `dist/` is just the build workspace (gitignored). The script signs
+a copy of the app in a temp folder outside the repo (if the repo lives on an
+iCloud-synced Desktop, iCloud keeps adding file attributes inside `dist/`
+that break signing), then uses that signed copy for `dist/`, the DMG, and
+the `/Applications` install. It also reuses an existing `.build-venv-mac`
+instead of recreating it.
 
 ### Building both platforms via CI
 
