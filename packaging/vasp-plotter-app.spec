@@ -1,7 +1,7 @@
-# PyInstaller spec for DOSCAR Plotter.
+# PyInstaller spec for VASP Plotter.
 #
 # Build from the repo root with:
-#   pyinstaller packaging/doscar.spec --noconfirm --clean
+#   pyinstaller packaging/vasp-plotter-app.spec --noconfirm --clean
 #
 # PyInstaller does not cross-compile: run this on macOS to get the .app and
 # on Windows to get the .exe (see build_mac.sh / build_windows.bat, or the
@@ -15,7 +15,7 @@ from PyInstaller.utils.hooks import collect_all
 block_cipher = None
 
 REPO_ROOT = Path(SPECPATH).parent
-APP_NAME = "DOSCAR Plotter"
+APP_NAME = "VASP Plotter"
 
 # These packages ship non-Python data (JS bundles, JSON schemas, or in
 # kaleido's case an entire headless-Chromium binary) that PyInstaller's
@@ -89,7 +89,7 @@ if sys.platform == "darwin":
         coll,
         name=f"{APP_NAME}.app",
         icon=icon_path,
-        bundle_identifier="com.emiljaffal.doscarplotter",
+        bundle_identifier="com.emiljaffal.vasp-plotter-app",
         info_plist={
             "CFBundleName": APP_NAME,
             "CFBundleDisplayName": APP_NAME,

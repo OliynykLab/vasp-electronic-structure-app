@@ -6,7 +6,8 @@ cd "$(dirname "$0")"
 
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 VENV_DIR=".build-venv-mac"
-APP_NAME="DOSCAR Plotter"
+APP_NAME="VASP Plotter"
+ARTIFACT_SLUG="vasp-plotter-app"
 
 echo "==> Setting up build environment ($VENV_DIR)"
 "$PYTHON_BIN" -m venv "$VENV_DIR"
@@ -20,7 +21,7 @@ fi
 
 echo "==> Running PyInstaller"
 rm -rf build dist
-"$VENV_DIR/bin/pyinstaller" packaging/doscar.spec --noconfirm --clean
+"$VENV_DIR/bin/pyinstaller" packaging/vasp-plotter-app.spec --noconfirm --clean
 
 APP_PATH="dist/${APP_NAME}.app"
 if [ ! -d "$APP_PATH" ]; then
@@ -32,7 +33,7 @@ echo "==> Patching kaleido's bundled wrapper script"
 # kaleido 0.2.1 ships a bundled executable/kaleido wrapper shell script with
 # two unquoted variable expansions (`cd $DIR` and `./bin/kaleido $@`) that
 # word-split on spaces -- breaking Save-as-PNG the moment any ancestor path
-# contains one, which "DOSCAR Plotter.app" always does. Patch every real
+# contains one, which "VASP Plotter.app" always does. Patch every real
 # copy PyInstaller creates (Contents/Frameworks/... is normally just a
 # symlink to Contents/Resources/..., so `-type f` naturally skips it and
 # patches the one real file underneath).
@@ -41,7 +42,7 @@ while IFS= read -r -d '' script; do
 done < <(find "$APP_PATH" -type f -path '*/kaleido/executable/kaleido' -print0)
 
 echo "==> Building disk image"
-DMG_PATH="dist/${APP_NAME// /-}-mac.dmg"
+DMG_PATH="dist/${ARTIFACT_SLUG}-mac.dmg"
 rm -f "$DMG_PATH"
 
 # Stage the .app alongside an Applications shortcut (the standard

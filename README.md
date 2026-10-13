@@ -1,4 +1,4 @@
-# DOSCAR / COHP / COOP Plotter (desktop app)
+# VASP Plotter — DOS / COHP / COOP (desktop app)
 
 A downloadable, offline desktop app for visualizing VASP/LOBSTER bonding
 and electronic-structure data. It combines two web tools — the DOS plotter
@@ -27,13 +27,13 @@ this app is where active development happens going forward.
 1. Download the build for your platform from the project's
    [Releases page](../../releases) (or from your CI artifacts if you're
    building yourself — see below):
-   - **macOS**: `DOSCAR-Plotter-mac.dmg` → open it, drag the app into
+   - **macOS**: `vasp-plotter-app-mac.dmg` → open it, drag the app into
      Applications, then launch it from there or Spotlight.
-   - **Windows**: `DOSCAR Plotter-windows.zip` → unzip it anywhere, then run
+   - **Windows**: `vasp-plotter-app-windows.zip` → unzip it anywhere, then run
      the `.exe` inside the extracted folder.
 2. The app opens its own window. Use the dropdown at the top left (reads
-   "DOSCAR Plotter" by default) to switch between the two tools:
-   - **DOSCAR Plotter**: upload a ZIP containing a `POSCAR` and a `DOSCAR`
+   "DOS Plotter" by default) to switch between the two tools:
+   - **DOS Plotter**: upload a ZIP containing a `POSCAR` and a `DOSCAR`
      (the folder inside the ZIP should be named after the compound, e.g.
      `Gd10RuCd3/`), or click **Load demo file**.
    - **COHP/COOP Plotter**: upload a ZIP containing `COHPCAR.lobster`
@@ -54,7 +54,7 @@ aren't code-signed:
 
 All of the original functionality carries over exactly, for both tools:
 
-- DOSCAR Plotter: ISPIN=1 / ISPIN=2 (spin-polarized) support, all LORBIT
+- DOS Plotter: ISPIN=1 / ISPIN=2 (spin-polarized) support, all LORBIT
   variants, per-atom orbital selection and coloring, legend reordering,
   axis/legend-position controls, title/tick-label toggles, Mendeleev-ordered
   legend, total-DOS-as-sum-of-atoms convention.
@@ -71,7 +71,7 @@ All of the original functionality carries over exactly, for both tools:
   into a standalone `.app` / `.exe` with [PyInstaller](https://pyinstaller.org/)
   so end users don't need Python, pip, or a terminal.
 - **One app, two tools.** A dropdown in the top-left corner (where the app
-  name is) switches between **DOSCAR Plotter** and **COHP/COOP Plotter**.
+  name is) switches between **DOS Plotter** and **COHP/COOP Plotter**.
   Both stay loaded at once — switching is instant and doesn't lose either
   tool's uploaded data or settings.
 - **Redesigned interface**: a sidebar (Data / axis / display / export cards)
@@ -82,12 +82,21 @@ All of the original functionality carries over exactly, for both tools:
   the original tools' output.
 - **Writable data lives outside the app bundle.** The DOSCAR side extracts
   uploads to a per-user app-support folder (`~/Library/Application
-  Support/DOSCAR Plotter` on macOS, `%APPDATA%\DOSCAR Plotter` on Windows)
+  Support/VASP Plotter` on macOS, `%APPDATA%\VASP Plotter` on Windows)
   instead of next to the app itself, since installed apps usually live in a
   read-only location (`/Applications`, `Program Files`). The COHP/COOP side
   never touches disk at all — it parses the uploaded ZIP fully in memory.
 - Runs on a dynamically chosen local port and only binds to `127.0.0.1` —
   no fixed port conflicts, nothing reachable from the network.
+
+## Roadmap
+
+- **Band structure support** — a band-structure plotter alongside the
+  existing DOS and COHP/COOP tools (parse VASP band output, e.g.
+  `EIGENVAL`/`vasprun.xml` + `KPOINTS` for the high-symmetry path labels).
+- **All-in-one plot** — a combined figure showing band structure, DOS and
+  COHP side by side on a shared energy axis, so features can be lined up
+  across all three at a glance.
 
 ## Repository layout
 
@@ -100,7 +109,7 @@ src/cohp_coop.py          COHPCAR/COOPCAR parsing and Plotly figure construction
 assets/                   CSS, icons served by Dash (also bundled into the packaged app)
 resources/                Demo ZIPs (DOSCAR + COHP/COOP) bundled into the packaged app
 packaging/
-  doscar.spec              PyInstaller build spec (used by both platforms)
+  vasp-plotter-app.spec     PyInstaller build spec (used by both platforms)
   make_icons.py             Regenerates packaging/icon.icns and packaging/icon.ico
   icon.icns, icon.ico       Committed app icons (regenerate only if the design changes)
 build_mac.sh               Build the macOS .app + .dmg (run on a Mac)
@@ -130,16 +139,16 @@ let CI do both — see below).
 ```bash
 # macOS
 ./build_mac.sh
-# → dist/DOSCAR Plotter.app and dist/DOSCAR-Plotter-mac.dmg
+# → dist/VASP Plotter.app and dist/vasp-plotter-app-mac.dmg
 
 # Windows (from cmd or PowerShell)
 build_windows.bat
-# → dist\DOSCAR Plotter\ and dist\DOSCAR Plotter-windows.zip
+# → dist\VASP Plotter\ and dist\vasp-plotter-app-windows.zip
 ```
 
 Both scripts create their own build virtualenv, install
 `requirements-build.txt`, and run PyInstaller against
-[packaging/doscar.spec](packaging/doscar.spec). The bundle is sizable
+[packaging/vasp-plotter-app.spec](packaging/vasp-plotter-app.spec). The bundle is sizable
 (several hundred MB) because Kaleido ships its own headless-Chromium binary
 for PNG export — that's expected.
 

@@ -1,5 +1,5 @@
 """
-Desktop entry point for DOSCAR Plotter.
+Desktop entry point for VASP Plotter.
 
 Runs the Dash/Flask app in a background thread and shows it inside a native
 window via pywebview — no separate browser tab, no visible terminal, works
@@ -26,7 +26,7 @@ from app import app as dash_app
 # Downloads folder (on both macOS and Windows) with the suggested filename.
 webview.settings['ALLOW_DOWNLOADS'] = True
 
-WINDOW_TITLE = "DOSCAR Plotter"
+WINDOW_TITLE = "VASP Plotter"
 # Wide enough for the COHP/COOP page's two plots to sit side by side (see
 # .dual-plot-row / #cohp-page .plot-pane in assets/style.css, which pins
 # that pane's width so the plots always stay side by side regardless of
@@ -80,7 +80,7 @@ def main() -> int:
     server_thread.start()
 
     if not _wait_for_server(url):
-        print("DOSCAR Plotter failed to start its local server.", file=sys.stderr)
+        print("VASP Plotter failed to start its local server.", file=sys.stderr)
         return 1
 
     webview.create_window(

@@ -27,36 +27,36 @@ jobs:
           if [ ! -f packaging/icon.icns ]; then python packaging/make_icons.py; fi
 
       - name: Build with PyInstaller
-        run: pyinstaller packaging/doscar.spec --noconfirm --clean
+        run: pyinstaller packaging/vasp-plotter-app.spec --noconfirm --clean
 
       - name: Patch kaleido's bundled wrapper script
         # kaleido 0.2.1 ships a bundled executable/kaleido wrapper shell
         # script with two unquoted variable expansions (`cd $DIR` and
         # `./bin/kaleido $@`) that word-split on spaces -- breaking
         # Save-as-PNG the moment any ancestor path contains one, which
-        # "DOSCAR Plotter.app" always does. Patch every real copy
+        # "VASP Plotter.app" always does. Patch every real copy
         # PyInstaller creates (Contents/Frameworks/... is normally just a
         # symlink to Contents/Resources/..., so `-type f` naturally skips
         # it and patches the one real file underneath).
         run: |
-          APP_NAME="DOSCAR Plotter"
+          APP_NAME="VASP Plotter"
           while IFS= read -r -d '' script; do
             sed -i '' 's/^cd \$DIR$/cd "$DIR"/; s#^\./bin/kaleido \$@$#./bin/kaleido "$@"#' "$script"
           done < <(find "dist/$APP_NAME.app" -type f -path '*/kaleido/executable/kaleido' -print0)
 
       - name: Create DMG
         run: |
-          APP_NAME="DOSCAR Plotter"
+          APP_NAME="VASP Plotter"
           STAGE_DIR="$(mktemp -d)"
           cp -R "dist/$APP_NAME.app" "$STAGE_DIR/"
           ln -s /Applications "$STAGE_DIR/Applications"
           cp "HOW_TO_OPEN.md" "$STAGE_DIR/How To Open.txt"
-          hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE_DIR" -ov -format UDZO "dist/$APP_NAME-mac.dmg"
+          hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE_DIR" -ov -format UDZO "dist/vasp-plotter-app-mac.dmg"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: doscar-plotter-mac
-          path: dist/DOSCAR Plotter-mac.dmg
+          name: vasp-plotter-app-mac
+          path: dist/vasp-plotter-app-mac.dmg
 
   build-windows:
     runs-on: windows-latest
@@ -78,18 +78,18 @@ jobs:
           if [ ! -f packaging/icon.ico ]; then python packaging/make_icons.py; fi
 
       - name: Build with PyInstaller
-        run: pyinstaller packaging/doscar.spec --noconfirm --clean
+        run: pyinstaller packaging/vasp-plotter-app.spec --noconfirm --clean
 
       - name: Zip build
         shell: pwsh
         run: |
-          Copy-Item "HOW_TO_OPEN.md" "dist/DOSCAR Plotter/How To Open.txt"
-          Compress-Archive -Path "dist/DOSCAR Plotter" -DestinationPath "dist/DOSCAR Plotter-windows.zip" -Force
+          Copy-Item "HOW_TO_OPEN.md" "dist/VASP Plotter/How To Open.txt"
+          Compress-Archive -Path "dist/VASP Plotter" -DestinationPath "dist/vasp-plotter-app-windows.zip" -Force
 
       - uses: actions/upload-artifact@v4
         with:
-          name: doscar-plotter-windows
-          path: dist/DOSCAR Plotter-windows.zip
+          name: vasp-plotter-app-windows
+          path: dist/vasp-plotter-app-windows.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -103,5 +103,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/doscar-plotter-mac/*.dmg
-            artifacts/doscar-plotter-windows/*.zip
+            artifacts/vasp-plotter-app-mac/*.dmg
+            artifacts/vasp-plotter-app-windows/*.zip
