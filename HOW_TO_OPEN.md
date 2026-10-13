@@ -12,11 +12,11 @@ Already have a build on this Mac?
 If a build has already been produced on this machine (via `./build_mac.sh`),
 the app is sitting at:
 
-    /Users/emiljaffal/Desktop/Github/vasp-electronic-structure-app/dist/DOSCAR Plotter.app
+    /Users/emiljaffal/Desktop/Github/vasp-electronic-structure-app/dist/VASP Plotter.app
 
 Double-click it in Finder at that path, or open it from Terminal with:
 
-    open "/Users/emiljaffal/Desktop/Github/vasp-electronic-structure-app/dist/DOSCAR Plotter.app"
+    open "/Users/emiljaffal/Desktop/Github/vasp-electronic-structure-app/dist/VASP Plotter.app"
 
 The first-launch Gatekeeper step in the macOS section below still applies.
 This section only makes sense on this particular computer — anyone else
@@ -27,7 +27,7 @@ sections below instead.
 macOS
 -----
 
-1. You'll have a file named something like `DOSCAR-Plotter-mac.dmg`.
+1. You'll have a file named something like `vasp-plotter-app-mac.dmg`.
    Double-click it. A small window opens with the app's icon and a shortcut
    to your Applications folder.
 
@@ -53,11 +53,11 @@ macOS
 Windows
 -------
 
-1. You'll have a file named something like `DOSCAR Plotter-windows.zip`.
+1. You'll have a file named something like `vasp-plotter-app-windows.zip`.
    Right-click it and choose **Extract All...**, then pick any folder (your
    Desktop or Documents both work fine).
 
-2. Open the extracted folder and double-click `DOSCAR Plotter.exe`.
+2. Open the extracted folder and double-click `VASP Plotter.exe`.
 
 3. Windows will likely show a blue "Windows protected your PC" screen. This
    is Microsoft SmartScreen's standard warning for any app that isn't from a
@@ -77,7 +77,7 @@ Windows
 Using the app
 -------------
 
-- A dropdown in the top-left corner switches between the **DOSCAR Plotter**
+- A dropdown in the top-left corner switches between the **DOS Plotter**
   and the **COHP/COOP Plotter** — both live in this one app.
 - Click **Load demo file** in either mode to try it immediately, without any
   of your own data.

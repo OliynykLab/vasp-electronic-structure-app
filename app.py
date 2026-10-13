@@ -34,7 +34,7 @@ pio.kaleido.scope.default_width = 1200
 pio.kaleido.scope.default_height = 800
 pio.kaleido.scope.default_scale = 2
 
-APP_NAME = "DOSCAR Plotter"
+APP_NAME = "VASP Plotter"
 
 DEFAULTS = {
     "xmin": 0,
@@ -184,7 +184,7 @@ app.layout = html.Div(
                                     id="app-mode",
                                     className="mode-select",
                                     options=[
-                                        {"label": "DOSCAR Plotter", "value": "doscar"},
+                                        {"label": "DOS Plotter", "value": "doscar"},
                                         {"label": "COHP/COOP Plotter", "value": "cohp"},
                                     ],
                                     value="doscar",
@@ -1265,14 +1265,36 @@ def load_demo_file(n_clicks):
     return dash.no_update
 
 
+def _reorder_contribution_rows(children, order):
+    """Reorder the atomic-contributions table rows to match `order`.
+
+    Works on the table's current serialized state (as passed back by Dash),
+    so each row keeps whatever orbitals/color/total the user already set.
+    Returns dash.no_update if the table isn't in the expected shape.
+    """
+    try:
+        table = children['props']['children']
+        rows = table['props']['children']
+        header, body = rows[0], rows[1:]
+        by_name = {row['props']['children'][0]['props']['children']: row for row in body}
+        if set(by_name) != set(order):
+            return dash.no_update
+        table['props']['children'] = [header] + [by_name[name] for name in order]
+        return children
+    except (KeyError, IndexError, TypeError):
+        return dash.no_update
+
+
 @app.callback(
     Output('legend-order', 'data', allow_duplicate=True),
+    Output('atomic-contributions-container', 'children', allow_duplicate=True),
     [Input({'type': 'order-up', 'index': ALL}, 'n_clicks'),
      Input({'type': 'order-down', 'index': ALL}, 'n_clicks')],
-    [State('legend-order', 'data')],
+    [State('legend-order', 'data'),
+     State('atomic-contributions-container', 'children')],
     prevent_initial_call=True
 )
-def update_legend_order(up_clicks, down_clicks, legend_order):
+def update_legend_order(up_clicks, down_clicks, legend_order, table_children):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
@@ -1284,11 +1306,11 @@ def update_legend_order(up_clicks, down_clicks, legend_order):
     # Extract the atom name or 'Total' from the trigger string
     match = re.search(r'index":\s*"([^"]+)"', trigger)
     if not match:
-        return new_legend_order
+        raise PreventUpdate
 
     name = match.group(1)
     if not new_legend_order or name not in new_legend_order:
-        return new_legend_order
+        raise PreventUpdate
 
     idx = new_legend_order.index(name)
 
@@ -1298,12 +1320,16 @@ def update_legend_order(up_clicks, down_clicks, legend_order):
     elif 'order-down' in trigger and idx < len(new_legend_order)-1:
         # Move item down (swap with next item)
         new_legend_order[idx+1], new_legend_order[idx] = new_legend_order[idx], new_legend_order[idx+1]
+    else:
+        raise PreventUpdate
 
-    return new_legend_order
+    # Move the matching row in the atomic-contributions table too, so the
+    # table always reads in the same order as the plot legend.
+    return new_legend_order, _reorder_contribution_rows(table_children, new_legend_order)
 
 
 # ==========================================================================
-# Mode switcher (DOSCAR Plotter <-> COHP/COOP Plotter)
+# Mode switcher (DOS Plotter <-> COHP/COOP Plotter)
 # ==========================================================================
 
 MODE_SUBTITLES = {
@@ -1339,7 +1365,7 @@ def update_folder_badge(mode, doscar_folder, cohp_folder):
 # ==========================================================================
 # COHP / COOP Plotter — ported from cohp-coop-gui/app.py. Component ids are
 # prefixed with "cc-" to keep this page's callback graph independent of the
-# DOSCAR Plotter page sharing the window; the parsing/plotting logic lives in
+# DOS Plotter page sharing the window; the parsing/plotting logic lives in
 # src/cohp_coop.py and is otherwise unchanged from the original app.
 # ==========================================================================
 

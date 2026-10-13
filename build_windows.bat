@@ -5,7 +5,8 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 set VENV_DIR=.build-venv-win
-set APP_NAME=DOSCAR Plotter
+set APP_NAME=VASP Plotter
+set ARTIFACT_SLUG=vasp-plotter-app
 
 echo ==^> Setting up build environment (%VENV_DIR%)
 py -3 -m venv %VENV_DIR%
@@ -20,7 +21,7 @@ if not exist "packaging\icon.ico" (
 echo ==^> Running PyInstaller
 rmdir /s /q build 2>nul
 rmdir /s /q dist 2>nul
-call %VENV_DIR%\Scripts\pyinstaller packaging\doscar.spec --noconfirm --clean
+call %VENV_DIR%\Scripts\pyinstaller packaging\vasp-plotter-app.spec --noconfirm --clean
 if errorlevel 1 goto :error
 
 if exist "HOW_TO_OPEN.md" (
@@ -28,12 +29,12 @@ if exist "HOW_TO_OPEN.md" (
 )
 
 echo ==^> Zipping the build for distribution
-powershell -NoProfile -Command "Compress-Archive -Path 'dist\%APP_NAME%' -DestinationPath 'dist\%APP_NAME%-windows.zip' -Force"
+powershell -NoProfile -Command "Compress-Archive -Path 'dist\%APP_NAME%' -DestinationPath 'dist\%ARTIFACT_SLUG%-windows.zip' -Force"
 
 echo.
 echo Done.
 echo   Folder: dist\%APP_NAME%\
-echo   Zip:    dist\%APP_NAME%-windows.zip
+echo   Zip:    dist\%ARTIFACT_SLUG%-windows.zip
 echo.
 echo Note: this build is not code-signed. Windows SmartScreen may warn on
 echo first launch ("Windows protected your PC") — click "More info" then
