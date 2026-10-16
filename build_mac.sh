@@ -99,6 +99,6 @@ if [ -n "$INSTALLED" ]; then
 fi
 echo
 echo "Note: this build is not code-signed or notarized. On first launch,"
-echo "macOS Gatekeeper will warn that it's from an unidentified developer —"
-echo "right-click the app and choose Open once to allow it (see HOW_TO_OPEN.md,"
-echo "which is also bundled inside the DMG as 'How To Open.txt')."
+echo "macOS Gatekeeper will block a downloaded copy — allow it once via System"
+echo "Settings → Privacy & Security → Open Anyway (see HOW_TO_OPEN.md, which is"
+echo "also bundled inside the DMG as 'How To Open.txt')."

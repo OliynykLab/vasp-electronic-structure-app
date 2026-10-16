@@ -1,27 +1,9 @@
-How to open DOSCAR / COHP / COOP Plotter
-=========================================
+How to open VASP Plotter (DOS / COHP / COOP)
+============================================
 
 No installation needed. No Python, no command line, nothing to set up —
 just download and open. Everything the app needs is already bundled inside
 it.
-
-
-Already have a build on this Mac?
-----------------------------------
-
-If a build has already been produced on this machine (via `./build_mac.sh`),
-the app is sitting at:
-
-    /Users/emiljaffal/Desktop/Github/vasp-electronic-structure-app/dist/VASP Plotter.app
-
-Double-click it in Finder at that path, or open it from Terminal with:
-
-    open "/Users/emiljaffal/Desktop/Github/vasp-electronic-structure-app/dist/VASP Plotter.app"
-
-The first-launch Gatekeeper step in the macOS section below still applies.
-This section only makes sense on this particular computer — anyone else
-opening this guide from a downloaded `.dmg` or `.zip` should skip to the
-sections below instead.
 
 
 macOS
@@ -36,16 +18,22 @@ macOS
    window instead — it runs either way. Dragging it into Applications just
    makes it easier to find again later, e.g. via Spotlight.)
 
-3. Open Applications (or press Cmd+Space, type "DOSCAR", and press Return)
+3. Open Applications (or press Cmd+Space, type "VASP Plotter", and press Return)
    and double-click the app.
 
-4. The first time you open it, macOS will likely say it "cannot be opened
-   because it is from an unidentified developer." This is expected — it
-   shows up for any app that isn't distributed through the App Store, and
-   doesn't mean anything is wrong. To get past it, just once:
-   - Right-click (Control-click) the app and choose **Open**.
-   - Click **Open** again in the dialog that appears.
+4. The first time you open it, macOS will say "VASP Plotter" Not Opened —
+   "Apple could not verify it is free of malware." This is expected: it
+   shows up for any app that isn't signed with a paid Apple developer
+   certificate, and doesn't mean anything is wrong. To allow it, just once:
+   - Click **Done** on that message (not "Move to Trash").
+   - Open **System Settings → Privacy & Security** and scroll to the bottom.
+   - Next to "VASP Plotter was blocked to protect your Mac", click
+     **Open Anyway**, then **Open Anyway** again and enter your password.
    - From then on, it opens normally with a regular double-click.
+   (Older guides say to right-click the app and choose Open — that stopped
+   working in macOS 15 Sequoia.)
+
+   This build runs on Apple Silicon Macs (M1 or newer) only.
 
 5. A window opens with the app already running. Nothing else to configure.
 

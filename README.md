@@ -25,10 +25,13 @@ this app is where active development happens going forward.
 > it travels along whenever the app is shared with someone else.
 
 1. Download the build for your platform from the project's
-   [Releases page](../../releases) (or from your CI artifacts if you're
-   building yourself — see below):
-   - **macOS**: `vasp-plotter-app-mac.dmg` → open it, drag the app into
-     Applications, then launch it from there or Spotlight.
+   [Releases page](../../releases). Releases are only published when a
+   `v*` tag is pushed (see [Building both platforms via CI](#building-both-platforms-via-ci));
+   between releases, the latest builds are attached to each successful
+   [Actions run](../../actions) under **Artifacts** (requires a GitHub
+   login, and downloads as a `.zip` wrapping the file below):
+   - **macOS** (Apple Silicon only): `vasp-plotter-app-mac.dmg` → open it,
+     drag the app into Applications, then launch it from there or Spotlight.
    - **Windows**: `vasp-plotter-app-windows.zip` → unzip it anywhere, then run
      the `.exe` inside the extracted folder.
 2. The app opens its own window. Use the dropdown at the top left (reads
@@ -43,7 +46,11 @@ this app is where active development happens going forward.
 
 **First-launch warnings are expected and safe to dismiss** — these builds
 aren't code-signed:
-- macOS (Gatekeeper): right-click the app → **Open** → **Open** again.
+- macOS (Gatekeeper): double-click the app, click **Done** on the "Not
+  Opened" dialog, then go to **System Settings → Privacy & Security**,
+  scroll down, click **Open Anyway** next to "VASP Plotter was blocked",
+  and confirm with your password. (On macOS 15 and later, right-click →
+  Open no longer bypasses this.)
 - Windows (SmartScreen): click **More info** → **Run anyway**.
 - Windows only: the app window is rendered with Microsoft Edge WebView2,
   which ships with Windows 10/11 by default. If the window comes up blank,
@@ -165,19 +172,6 @@ instead of recreating it.
 Push to `main` (or open a PR) and [.github/workflows/build.yml](.github/workflows/build.yml)
 builds both the macOS and Windows app as workflow artifacts. Push a tag like
 `v1.0.0` and it also publishes both to a GitHub Release automatically.
-
-### Regenerating the app icon
-
-Only needed if you change the icon design:
-
-```bash
-pip install pillow
-python packaging/make_icons.py
-```
-
-This overwrites `packaging/icon.icns` (macOS only — needs `iconutil`, which
-ships with Xcode Command Line Tools) and `packaging/icon.ico` (any OS with
-Pillow installed).
 
 ## License
 
