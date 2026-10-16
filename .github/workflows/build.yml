@@ -44,6 +44,18 @@ jobs:
             sed -i '' 's/^cd \$DIR$/cd "$DIR"/; s#^\./bin/kaleido \$@$#./bin/kaleido "$@"#' "$script"
           done < <(find "dist/$APP_NAME.app" -type f -path '*/kaleido/executable/kaleido' -print0)
 
+      - name: Re-sign app
+        # The kaleido patch above edits a file PyInstaller already sealed
+        # into its ad-hoc signature, which leaves the bundle with "a sealed
+        # resource is missing or invalid" -- macOS then reports a downloaded
+        # copy as "damaged" with no way to open it. Re-sign after patching
+        # (same as build_mac.sh does).
+        run: |
+          APP_NAME="VASP Plotter"
+          xattr -cr "dist/$APP_NAME.app"
+          codesign -s - --force --deep "dist/$APP_NAME.app"
+          codesign --verify --deep --strict "dist/$APP_NAME.app"
+
       - name: Create DMG
         run: |
           APP_NAME="VASP Plotter"
